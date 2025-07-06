@@ -10,23 +10,22 @@ type PlanId =
   | 'pro-yearly' 
   | 'enterprise-yearly';
 
-// Prices for different plans - using Stripe test price IDs
-const PRICE_IDS: Record<PlanId, string> = {
-  'basic-monthly': process.env.STRIPE_PRICE_BASIC_MONTHLY || 'price_placeholder',
-  'pro-monthly': process.env.STRIPE_PRICE_PRO_MONTHLY || 'price_placeholder',
-  'enterprise-monthly': process.env.STRIPE_PRICE_ENTERPRISE_MONTHLY || 'price_placeholder',
-  'basic-yearly': process.env.STRIPE_PRICE_BASIC_YEARLY || 'price_placeholder',
-  'pro-yearly': process.env.STRIPE_PRICE_PRO_YEARLY || 'price_placeholder',
-  'enterprise-yearly': process.env.STRIPE_PRICE_ENTERPRISE_YEARLY || 'price_placeholder'
-};
-
-// Check if we should enable development bypass
-const enableDevBypass = process.env.NEXT_PUBLIC_DEV_BYPASS_STRIPE === 'true';
-
-// For development fallback
-const DOMAIN = process.env.NEXT_PUBLIC_DOMAIN || 'http://localhost:3000';
-
 export async function POST(request: Request) {
+  // Prices for different plans - using Stripe test price IDs
+  const PRICE_IDS: Record<PlanId, string> = {
+    'basic-monthly': process.env.STRIPE_PRICE_BASIC_MONTHLY || 'price_placeholder',
+    'pro-monthly': process.env.STRIPE_PRICE_PRO_MONTHLY || 'price_placeholder',
+    'enterprise-monthly': process.env.STRIPE_PRICE_ENTERPRISE_MONTHLY || 'price_placeholder',
+    'basic-yearly': process.env.STRIPE_PRICE_BASIC_YEARLY || 'price_placeholder',
+    'pro-yearly': process.env.STRIPE_PRICE_PRO_YEARLY || 'price_placeholder',
+    'enterprise-yearly': process.env.STRIPE_PRICE_ENTERPRISE_YEARLY || 'price_placeholder'
+  };
+
+  // Check if we should enable development bypass
+  const enableDevBypass = process.env.NEXT_PUBLIC_DEV_BYPASS_STRIPE === 'true';
+
+  // For development fallback
+  const DOMAIN = process.env.NEXT_PUBLIC_DOMAIN || 'http://localhost:3000';
   try {
     console.log('Checkout API: Received request');
     

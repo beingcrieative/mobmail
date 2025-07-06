@@ -1,10 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+import { getSupabaseAdmin } from '@/lib/supabase';
 
 export async function POST(request: Request) {
   try {
@@ -14,6 +9,14 @@ export async function POST(request: Request) {
       return new NextResponse(
         JSON.stringify({ error: 'User ID and Plan ID are required' }), 
         { status: 400, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const supabase = getSupabaseAdmin();
+    if (!supabase) {
+      return new NextResponse(
+        JSON.stringify({ error: 'Database is currently unavailable' }),
+        { status: 503, headers: { 'Content-Type': 'application/json' } }
       );
     }
 

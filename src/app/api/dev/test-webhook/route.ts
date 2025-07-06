@@ -1,16 +1,9 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { getSupabaseAdmin } from '@/lib/supabase';
 import { createHmac } from 'crypto';
 
 // Only allow this route in development mode
 const isDevelopment = process.env.NODE_ENV !== 'production';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET || 'whsec_test_secret';
-
-// Initialize Supabase client with service role key for admin access
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 // Helper function to generate Stripe signature
 function generateStripeSignature(payload: string, secret: string): string {
