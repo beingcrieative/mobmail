@@ -1,11 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-
-// Initialize Supabase client with service role key for admin access
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
+import { getSupabaseAdmin } from '@/lib/supabase';
 
 export async function GET(request: Request) {
   try {
@@ -17,6 +11,14 @@ export async function GET(request: Request) {
       return NextResponse.json(
         { error: 'User ID is required' },
         { status: 400 }
+      );
+    }
+
+    const supabase = getSupabaseAdmin();
+    if (!supabase) {
+      return NextResponse.json(
+        { error: 'Database is currently unavailable' },
+        { status: 503 }
       );
     }
 

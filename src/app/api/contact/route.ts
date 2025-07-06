@@ -1,11 +1,6 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { getSupabaseAdmin } from '@/lib/supabase';
 import { z } from 'zod';
-
-// Initialize Supabase client
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 // Validation schema for contact form
 const contactFormSchema = z.object({
@@ -36,6 +31,17 @@ export async function POST(request: Request) {
     }
     
     const validatedData = result.data;
+    
+    const supabase = getSupabaseAdmin();
+    if (!supabase) {
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: 'Database is currently unavailable'
+        }, 
+        { status: 503 }
+      );
+    }
     
     // Insert the submission into Supabase
     const { data, error } = await supabase

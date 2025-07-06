@@ -1,14 +1,8 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { getSupabaseAdmin } from '@/lib/supabase';
 
 // Only allow this route in development mode
 const isDevelopment = process.env.NODE_ENV !== 'production';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-
-// Initialize Supabase client with service role key for admin access
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 export async function GET(request: Request) {
   // Prevent use in production
