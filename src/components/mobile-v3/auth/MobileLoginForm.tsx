@@ -5,72 +5,37 @@ import { motion } from 'framer-motion';
 import { ArrowLeft, Mail, Lock, Eye, EyeOff } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { useRouter } from 'next/navigation';
-import { getSupabase } from '@/lib/supabase';
+import { useAuth } from '@/lib/hooks/useAuth';
 
 export default function MobileLoginForm() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const { login, loading, error } = useAuth();
   const router = useRouter();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
 
     try {
       console.log('Attempting to sign in with:', email);
       
-      const supabase = getSupabase();
-      if (!supabase) {
-        toast.error('Authentication service is currently unavailable');
-        setLoading(false);
-        return;
-      }
+      const success = await login(email, password);
       
-      // Sign in with email and password
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (error) {
-        console.error('Login error:', error.message);
-        toast.error(error.message);
-        setLoading(false);
-        return;
-      }
-
-      if (data?.session) {
-        console.log('Login successful, session established:', data.session.user.email);
-        
-        // Store the session in localStorage as a backup
-        localStorage.setItem('supabase.auth.token', JSON.stringify(data.session));
-        
-        // Store the user ID and email in localStorage for direct access
-        localStorage.setItem('userId', data.session.user.id);
-        localStorage.setItem('userEmail', data.session.user.email || '');
-        
-        // Set cookies for server-side access
-        document.cookie = `userId=${data.session.user.id}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
-        document.cookie = `userEmail=${data.session.user.email || ''}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
-        document.cookie = `authToken=${data.session.access_token}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
+      if (success) {
+        console.log('Login successful via useAuth hook');
         
         // Check if user profile exists and has required fields
         try {
-          const profileResponse = await fetch('/api/user/profile', {
-            headers: {
-              'Authorization': `Bearer ${data.session.access_token}`
-            }
-          });
+          const profileResponse = await fetch('/api/user/profile');
           
           // If profile not found or incomplete, redirect to mobile settings wizard
           if (profileResponse.status === 404) {
             toast.success('Succesvol ingelogd! Vul alsjeblieft je voicemail instellingen in.');
             
-            // Add a small delay to ensure cookies are set before navigation
+            // Add a small delay to ensure authentication state is updated
             setTimeout(() => {
-              window.location.href = '/mobile-v3/profile?wizard=true';
+              router.push('/mobile-v3/profile?wizard=true');
             }, 500);
             return;
           }
@@ -83,9 +48,8 @@ export default function MobileLoginForm() {
             if (!profileData.name || !profileData.mobileNumber) {
               toast.success('Succesvol ingelogd! Vul alsjeblieft je voicemail instellingen in.');
               
-              // Add a small delay to ensure cookies are set before navigation
               setTimeout(() => {
-                window.location.href = '/mobile-v3/profile?wizard=true';
+                router.push('/mobile-v3/profile?wizard=true');
               }, 500);
               return;
             }
@@ -97,20 +61,21 @@ export default function MobileLoginForm() {
         
         toast.success('Succesvol ingelogd!');
         
-        // Add a small delay to ensure cookies are set before navigation
+        // Navigate to mobile dashboard
         setTimeout(() => {
-          // Navigate to mobile dashboard
-          window.location.href = '/mobile-v3';
+          router.push('/mobile-v3');
         }, 500);
       } else {
-        console.error('No session returned after login');
-        toast.error('Inloggen mislukt. Probeer het opnieuw.');
-        setLoading(false);
+        // Error handling is done by the useAuth hook
+        if (error) {
+          toast.error(error);
+        } else {
+          toast.error('Inloggen mislukt. Probeer het opnieuw.');
+        }
       }
     } catch (error) {
       console.error('Unexpected login error:', error);
       toast.error('Er is een fout opgetreden tijdens het inloggen.');
-      setLoading(false);
     }
   };
 

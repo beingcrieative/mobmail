@@ -8,12 +8,19 @@ export async function GET(request: NextRequest) {
     
     console.log(`Fetching transcriptions ${clientId ? `for client: ${clientId}` : 'for all clients'}`);
 
-    const supabase = getSupabaseAdmin();
+    // Try admin client first, fallback to regular client
+    let supabase = getSupabaseAdmin();
+    
     if (!supabase) {
-      return NextResponse.json(
-        { error: 'Database is currently unavailable' },
-        { status: 503 }
-      );
+      console.warn('Admin client not available, trying regular client');
+      supabase = require('@/lib/supabase').getSupabase();
+      
+      if (!supabase) {
+        return NextResponse.json(
+          { error: 'Database is currently unavailable' },
+          { status: 503 }
+        );
+      }
     }
 
     // Create the query
