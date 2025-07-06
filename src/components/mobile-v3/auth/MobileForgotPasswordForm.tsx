@@ -5,7 +5,7 @@ import { motion } from 'framer-motion';
 import { ArrowLeft, Mail, CheckCircle } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
+import { getSupabase } from '@/lib/supabase';
 
 export default function MobileForgotPasswordForm() {
   const [email, setEmail] = useState('');
@@ -18,6 +18,13 @@ export default function MobileForgotPasswordForm() {
     setLoading(true);
 
     try {
+      const supabase = getSupabase();
+      if (!supabase) {
+        toast.error('Authentication service is currently unavailable');
+        setLoading(false);
+        return;
+      }
+      
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${window.location.origin}/mobile-v3/auth/reset-password`,
       });

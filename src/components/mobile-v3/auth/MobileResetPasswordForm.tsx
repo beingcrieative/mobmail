@@ -5,7 +5,7 @@ import { motion } from 'framer-motion';
 import { Lock, Eye, EyeOff, CheckCircle, ArrowLeft } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
+import { getSupabase } from '@/lib/supabase';
 
 export default function MobileResetPasswordForm() {
   const [password, setPassword] = useState('');
@@ -42,6 +42,13 @@ export default function MobileResetPasswordForm() {
     setLoading(true);
     
     try {
+      const supabase = getSupabase();
+      if (!supabase) {
+        toast.error('Authentication service is currently unavailable');
+        setLoading(false);
+        return;
+      }
+      
       // Use Supabase's update password functionality
       const { error } = await supabase.auth.updateUser({
         password: password,
