@@ -1,13 +1,8 @@
 import { NextResponse } from 'next/server';
-import Stripe from 'stripe';
+import { getStripe } from '@/lib/stripe';
 
 // Only allow this route in development mode
 const isDevelopment = process.env.NODE_ENV !== 'production';
-
-// Initialize Stripe client
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
-  apiVersion: '2023-10-16' as any, // Force any type to bypass strictness in API version
-});
 
 export async function GET(request: Request) {
   // Prevent use in production
@@ -19,6 +14,14 @@ export async function GET(request: Request) {
   }
 
   try {
+    const stripe = getStripe();
+    if (!stripe) {
+      return NextResponse.json(
+        { error: 'Stripe is not configured' },
+        { status: 503 }
+      );
+    }
+
     // Fetch all products from Stripe
     const products = await stripe.products.list({
       active: true,
