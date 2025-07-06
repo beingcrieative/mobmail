@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { getSupabaseAdmin } from '@/lib/supabase';
 
 export async function GET(request: NextRequest) {
   try {
@@ -7,6 +7,14 @@ export async function GET(request: NextRequest) {
     const clientId = request.nextUrl.searchParams.get('clientId');
     
     console.log(`Fetching transcriptions ${clientId ? `for client: ${clientId}` : 'for all clients'}`);
+
+    const supabase = getSupabaseAdmin();
+    if (!supabase) {
+      return NextResponse.json(
+        { error: 'Database is currently unavailable' },
+        { status: 503 }
+      );
+    }
 
     // Create the query
     let query = supabase.from('call_transcriptions').select('*');
