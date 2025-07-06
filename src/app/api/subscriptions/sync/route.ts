@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import stripe from '@/lib/stripe';
+import { getStripe } from '@/lib/stripe';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
@@ -11,6 +11,14 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey);
 export async function POST(request: Request) {
   try {
     console.log('Starting subscription sync...');
+    
+    const stripe = getStripe();
+    if (!stripe) {
+      return NextResponse.json(
+        { error: 'Payment processing is currently unavailable' },
+        { status: 503 }
+      );
+    }
     
     // Get all active subscriptions from Stripe
     const stripeSubs = await stripe.subscriptions.list({
