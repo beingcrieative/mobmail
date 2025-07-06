@@ -100,9 +100,9 @@ export async function POST(request: Request) {
       dbSubs.map((sub: any) => [sub.id, sub])
     );
 
-    const updates = [];
-    const inserts = [];
-    const deactivations = [];
+    const updates: any[] = [];
+    const inserts: any[] = [];
+    const deactivations: any[] = [];
 
     // Check for updates and new subscriptions
     for (const [stripeId, stripeSub] of stripeMap) {
@@ -229,7 +229,7 @@ export async function POST(request: Request) {
         continue;
       }
       
-      const dbSub = dbMap.get(stripeId);
+      const dbSub = dbMap.get(stripeId) as any;
       
       if (!dbSub) {
         // New subscription in Stripe - only use basic fields available in current schema
@@ -262,10 +262,11 @@ export async function POST(request: Request) {
 
     // Check for subscriptions that should be deactivated
     for (const [dbStripeId, dbSub] of dbMap) {
-      if (!stripeMap.has(dbStripeId) && dbSub.status === 'active') {
+      const dbSubTyped = dbSub as any;
+      if (!stripeMap.has(dbStripeId) && dbSubTyped.status === 'active') {
         // Subscription exists in DB but not in Stripe (or not active in Stripe)
         deactivations.push({
-          id: dbSub.id,
+          id: dbSubTyped.id,
           status: 'canceled',
           updated_at: new Date().toISOString()
         });
