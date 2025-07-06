@@ -26,6 +26,14 @@ export async function GET(request: Request) {
       );
     }
 
+    const supabase = getSupabaseAdmin();
+    if (!supabase) {
+      return NextResponse.json(
+        { error: 'Database is currently unavailable' },
+        { status: 503 }
+      );
+    }
+
     // Check if the subscriptions table exists
     const { data: tableExists, error: checkTableError } = await supabase
       .from('subscriptions')
