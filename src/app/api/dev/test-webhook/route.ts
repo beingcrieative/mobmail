@@ -24,6 +24,8 @@ export async function POST(request: Request) {
   }
 
   try {
+    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET || 'whsec_test_secret';
+    
     const body = await request.json();
     const { userId, planId = 'pro-monthly' } = body;
 
