@@ -1,13 +1,19 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-// Initialize Supabase client
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
+import { getSupabaseAdmin } from '@/lib/supabase';
 
 export async function GET(request: Request) {
   try {
+    const supabase = getSupabaseAdmin();
+    if (!supabase) {
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: 'Database is currently unavailable'
+        }, 
+        { status: 503 }
+      );
+    }
+
     // Fetch the latest contact submissions
     const { data, error } = await supabase
       .from('contact_submissions')

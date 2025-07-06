@@ -1,19 +1,29 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Check if environment variables are defined
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+let supabaseInstance: any = null;
+let supabaseAdminInstance: any = null;
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Missing Supabase environment variables. Please check your .env.local file.');
-}
+// Get Supabase client with lazy loading (for browser/client-side)
+export function getSupabase() {
+  // Return cached instance if available
+  if (supabaseInstance) {
+    return supabaseInstance;
+  }
+  
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-// Log Supabase configuration for debugging
-console.log('Supabase URL:', supabaseUrl);
-console.log('Supabase Key:', supabaseAnonKey.substring(0, 10) + '...');
+  if (!supabaseUrl || !supabaseAnonKey) {
+    console.warn('Missing Supabase environment variables for client');
+    return null;
+  }
 
-// Create a single supabase client for the browser
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  // Log Supabase configuration for debugging
+  console.log('Supabase URL:', supabaseUrl);
+  console.log('Supabase Key:', supabaseAnonKey.substring(0, 10) + '...');
+
+  // Create and cache the Supabase instance
+  supabaseInstance = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
@@ -40,4 +50,31 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
       },
     },
   },
-}); 
+  });
+  
+  return supabaseInstance;
+}
+
+// Get Supabase admin client with service role key (for server-side/API routes)
+export function getSupabaseAdmin() {
+  // Return cached instance if available
+  if (supabaseAdminInstance) {
+    return supabaseAdminInstance;
+  }
+  
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!supabaseUrl || !supabaseServiceKey) {
+    console.warn('Missing Supabase environment variables for admin client');
+    return null;
+  }
+
+  // Create and cache the Supabase admin instance
+  supabaseAdminInstance = createClient(supabaseUrl, supabaseServiceKey);
+  
+  return supabaseAdminInstance;
+}
+
+// For backwards compatibility, export default as getSupabase
+export const supabase = getSupabase; 

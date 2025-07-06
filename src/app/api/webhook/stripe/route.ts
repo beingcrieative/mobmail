@@ -1,24 +1,7 @@
 import { NextResponse } from 'next/server';
 import { headers } from 'next/headers';
 import { getStripe } from '@/lib/stripe';
-import { createClient } from '@supabase/supabase-js';
-
-// Initialize Supabase client
-let supabase: any = null;
-
-try {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  
-  if (supabaseUrl && supabaseServiceKey) {
-    supabase = createClient(supabaseUrl, supabaseServiceKey);
-    console.log('Supabase client initialized in webhook handler');
-  } else {
-    console.warn('Missing Supabase environment variables in webhook handler');
-  }
-} catch (error) {
-  console.error('Error initializing Supabase client:', error);
-}
+import { getSupabaseAdmin } from '@/lib/supabase';
 
 export async function POST(request: Request) {
   try {
@@ -133,7 +116,7 @@ async function handleCheckoutSessionCompleted(session: any) {
   try {
     console.log('Processing checkout.session.completed event');
     
-    // Skip database update if Supabase is not available
+    const supabase = getSupabaseAdmin();
     if (!supabase) {
       console.warn('Supabase not available, skipping database update');
       return;
@@ -179,6 +162,7 @@ async function handleSubscriptionUpdated(subscription: any) {
   try {
     console.log('Processing subscription update event');
     
+    const supabase = getSupabaseAdmin();
     if (!supabase) {
       console.warn('Supabase not available, skipping subscription update');
       return;
@@ -241,6 +225,7 @@ async function handleSubscriptionDeleted(subscription: any) {
   try {
     console.log('Processing subscription deletion event');
     
+    const supabase = getSupabaseAdmin();
     if (!supabase) {
       console.warn('Supabase not available, skipping subscription deletion');
       return;
