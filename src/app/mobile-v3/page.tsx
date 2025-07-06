@@ -6,6 +6,10 @@ import { Phone, Clock, TrendingUp, Calendar, Settings, User, BarChart3, PlayCirc
 import { useRouter } from 'next/navigation';
 import Header from '@/components/mobile-v3/Header';
 import BottomNavigation from '@/components/mobile-v3/BottomNavigation';
+import { useAuth } from '@/lib/hooks/useAuth';
+import AuthDebugInfo from '@/components/mobile-v3/AuthDebugInfo';
+import AuthStatus from '@/components/mobile-v3/AuthStatus';
+import SupabaseTest from '@/components/debug/SupabaseTest';
 
 interface DashboardStats {
   todayVoicemails: number;
@@ -41,7 +45,7 @@ interface Transcription {
 }
 
 export default function MobileHomePage() {
-  const [userEmail, setUserEmail] = useState<string>('');
+  const { isAuthenticated, user, loading: authLoading, error: authError } = useAuth();
   const [currentTime, setCurrentTime] = useState(new Date());
   const [stats, setStats] = useState<DashboardStats>({
     todayVoicemails: 0,
@@ -52,101 +56,94 @@ export default function MobileHomePage() {
     avgDuration: 0
   });
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [dataLoading, setDataLoading] = useState(false);
   const router = useRouter();
 
+  // Fetch user data when authentication state changes
   useEffect(() => {
-    const checkAuth = async () => {
-      const storedUserEmail = localStorage.getItem('userEmail') || 
-                            getCookie('userEmail') || 
-                            'gebruiker@voicemailai.nl';
-      const storedUserId = localStorage.getItem('userId') || getCookie('userId');
+    if (!authLoading && isAuthenticated && user?.id) {
+      console.log('User authenticated, fetching data for:', user.email);
+      fetchRealData(user.id);
+    } else if (!authLoading && !isAuthenticated) {
+      console.log('User not authenticated, redirecting to login');
+      router.push('/login');
+    }
+  }, [authLoading, isAuthenticated, user, router]);
+
+  const fetchRealData = async (userId: string) => {
+    setDataLoading(true);
+    try {
+      console.log('Fetching transcriptions for user:', userId);
+      const response = await fetch(`/api/transcriptions?clientId=${userId}&t=${new Date().getTime()}`);
       
-      setUserEmail(storedUserEmail);
-      
-      if (storedUserId) {
-        await fetchRealData(storedUserId);
-      } else {
-        // Fallback to mock data if no user ID
-        setStats({
-          todayVoicemails: 0,
-          timeSaved: 0,
-          weeklyTrend: 0,
-          totalTranscriptions: 0,
-          unreadCount: 0,
-          avgDuration: 0
-        });
+      if (!response.ok) {
+        console.error('API response not ok:', response.status, response.statusText);
+        throw new Error(`Failed to fetch data: ${response.status}`);
       }
       
-      setLoading(false);
-    };
-
-    const getCookie = (name: string) => {
-      const value = `; ${document.cookie}`;
-      const parts = value.split(`; ${name}=`);
-      if (parts.length === 2) return parts.pop()?.split(';').shift();
-      return null;
-    };
-
-    const fetchRealData = async (userId: string) => {
-      try {
-        const response = await fetch(`/api/transcriptions?clientId=${userId}&t=${new Date().getTime()}`);
-        if (!response.ok) throw new Error('Failed to fetch data');
-        
-        const data = await response.json();
-        const transcriptions: Transcription[] = data.transcriptions || [];
-        
-        // Calculate real stats
-        const now = new Date();
-        const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        const todayTimestamp = Math.floor(todayStart.getTime() / 1000);
-        
-        const todayTranscriptions = transcriptions.filter(t => t.startTime >= todayTimestamp);
-        const totalDuration = transcriptions.reduce((sum, t) => sum + (t.callDuration || 0), 0);
-        const avgDuration = transcriptions.length > 0 ? Math.round(totalDuration / transcriptions.length) : 0;
-        
-        // Calculate time saved (assuming 2 minutes saved per transcription)
-        const timeSavedMinutes = transcriptions.length * 2;
-        
-        setStats({
-          todayVoicemails: todayTranscriptions.length,
-          timeSaved: timeSavedMinutes,
-          weeklyTrend: 12, // Mock trend for now
-          totalTranscriptions: transcriptions.length,
-          unreadCount: transcriptions.length, // All are considered unread for now
-          avgDuration
+      const data = await response.json();
+      const transcriptions: Transcription[] = data.transcriptions || [];
+      
+      console.log('Fetched transcriptions:', transcriptions.length);
+      
+      // Calculate real stats
+      const now = new Date();
+      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const todayTimestamp = Math.floor(todayStart.getTime() / 1000);
+      
+      const todayTranscriptions = transcriptions.filter(t => t.startTime >= todayTimestamp);
+      const totalDuration = transcriptions.reduce((sum, t) => sum + (t.callDuration || 0), 0);
+      const avgDuration = transcriptions.length > 0 ? Math.round(totalDuration / transcriptions.length) : 0;
+      
+      // Calculate time saved (assuming 2 minutes saved per transcription)
+      const timeSavedMinutes = transcriptions.length * 2;
+      
+      setStats({
+        todayVoicemails: todayTranscriptions.length,
+        timeSaved: timeSavedMinutes,
+        weeklyTrend: 12, // Mock trend for now
+        totalTranscriptions: transcriptions.length,
+        unreadCount: transcriptions.length, // All are considered unread for now
+        avgDuration
+      });
+      
+      // Generate recent activity from real data
+      const recentActivities: RecentActivity[] = transcriptions
+        .slice(0, 3)
+        .map((t, index) => {
+          const timeAgo = formatTimeAgo(t.startTime);
+          return {
+            id: t.id,
+            type: 'transcription' as const,
+            title: 'Voicemail transcriptie',
+            subtitle: `${t.customerName || 'Onbekende beller'} - ${t.transcriptSummary?.substring(0, 50) || 'Transcriptie beschikbaar'}...`,
+            time: timeAgo,
+            priority: index === 0 ? 'high' : index === 1 ? 'medium' : 'low'
+          };
         });
-        
-        // Generate recent activity from real data
-        const recentActivities: RecentActivity[] = transcriptions
-          .slice(0, 3)
-          .map((t, index) => {
-            const timeAgo = formatTimeAgo(t.startTime);
-            return {
-              id: t.id,
-              type: 'transcription' as const,
-              title: 'Voicemail transcriptie',
-              subtitle: `${t.customerName || 'Onbekende beller'} - ${t.transcriptSummary?.substring(0, 50) || 'Transcriptie beschikbaar'}...`,
-              time: timeAgo,
-              priority: index === 0 ? 'high' : index === 1 ? 'medium' : 'low'
-            };
-          });
-        
-        setRecentActivity(recentActivities);
-        
-      } catch (error) {
-        console.error('Error fetching real data:', error);
-        // Fallback to mock data
-        setStats({
-          todayVoicemails: 0,
-          timeSaved: 0,
-          weeklyTrend: 0,
-          totalTranscriptions: 0,
-          unreadCount: 0,
-          avgDuration: 0
-        });
+      
+      setRecentActivity(recentActivities);
+      
+    } catch (error) {
+      console.error('Error fetching real data:', error);
+      // Show more specific error information
+      if (authError) {
+        console.error('Authentication error:', authError);
       }
-    };
+      // Fallback to empty data with error indication
+      setStats({
+        todayVoicemails: 0,
+        timeSaved: 0,
+        weeklyTrend: 0,
+        totalTranscriptions: 0,
+        unreadCount: 0,
+        avgDuration: 0
+      });
+      setRecentActivity([]);
+    } finally {
+      setDataLoading(false);
+    }
+  };
 
     const formatTimeAgo = (timestamp: number) => {
       const now = Math.floor(Date.now() / 1000);
@@ -164,8 +161,8 @@ export default function MobileHomePage() {
       }
     };
 
-    checkAuth();
-    
+  // Update current time every minute
+  useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 60000);
     return () => clearInterval(timer);
   }, []);
@@ -178,6 +175,7 @@ export default function MobileHomePage() {
   };
 
   const getFirstName = (email: string) => {
+    if (!email) return 'Gebruiker';
     return email.split('@')[0].split('.')[0];
   };
 
@@ -229,26 +227,47 @@ export default function MobileHomePage() {
     }
   };
 
-  if (loading) {
+  // Show loading while checking authentication
+  if (authLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="h-full bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Laden...</p>
+          <p className="text-gray-600">Authenticatie controleren...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error if authentication failed
+  if (!isAuthenticated) {
+    return (
+      <div className="h-full bg-gray-50 flex items-center justify-center">
+        <div className="text-center px-6">
+          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <User size={32} className="text-red-600" />
+          </div>
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Niet ingelogd</h2>
+          <p className="text-gray-600 mb-6">Je bent niet ingelogd. Doorverwijzen naar loginpagina...</p>
+          {authError && (
+            <p className="text-red-600 text-sm">{authError}</p>
+          )}
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
+    <div className="h-full bg-gray-50">
       <Header 
         title="VoicemailAI" 
         showNotifications={stats.unreadCount > 0}
         showSettings={false}
       />
 
-      <div className="px-4 py-6">
+      <div className="px-4 py-6 pb-24">
+        <AuthStatus />
+        
         {/* Welcome Section */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -256,10 +275,10 @@ export default function MobileHomePage() {
           className="mb-8"
         >
           <h2 className="text-2xl font-bold text-gray-900 mb-1">
-            {getGreeting()}, {getFirstName(userEmail)}!
+            {getGreeting()}, {getFirstName(user?.email || '')}!
           </h2>
           <p className="text-gray-600">
-            Je hebt {stats.todayVoicemails} voicemails vandaag verwerkt
+            {dataLoading ? 'Gegevens laden...' : `Je hebt ${stats.todayVoicemails} voicemails vandaag verwerkt`}
           </p>
         </motion.div>
 
@@ -308,8 +327,14 @@ export default function MobileHomePage() {
                 <motion.button
                   key={index}
                   whileTap={{ scale: 0.95 }}
+                  whileHover={{ scale: 1.02 }}
                   onClick={() => router.push(action.route)}
-                  className="relative bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex flex-col items-center"
+                  className="relative bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex flex-col items-center active:bg-gray-50 transition-all duration-200"
+                  style={{ 
+                    WebkitTapHighlightColor: 'transparent',
+                    userSelect: 'none',
+                    touchAction: 'manipulation'
+                  }}
                 >
                   <div className={`w-12 h-12 rounded-xl ${action.color} flex items-center justify-center mb-3`}>
                     <Icon size={20} className="text-white" />
@@ -346,7 +371,13 @@ export default function MobileHomePage() {
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 0.1 * index }}
-                  className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 flex items-center space-x-3"
+                  whileTap={{ scale: 0.98 }}
+                  className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 flex items-center space-x-3 active:bg-gray-50 cursor-pointer transition-all duration-200"
+                  style={{ 
+                    WebkitTapHighlightColor: 'transparent',
+                    touchAction: 'manipulation'
+                  }}
+                  onClick={() => router.push('/mobile-v3/transcriptions')}
                 >
                   <div className={`w-10 h-10 rounded-full flex items-center justify-center ${getActivityColor(activity.priority)}`}>
                     <Icon size={18} />
@@ -389,6 +420,8 @@ export default function MobileHomePage() {
       </div>
 
       <BottomNavigation />
+      <AuthDebugInfo />
+      <SupabaseTest />
     </div>
   );
 }

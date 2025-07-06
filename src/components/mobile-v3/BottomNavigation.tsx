@@ -17,7 +17,7 @@ export default function BottomNavigation() {
   const router = useRouter();
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50">
+    <div className="fixed bottom-0 left-0 right-0 z-50 mobile-bottom-nav">
       {/* Home indicator */}
       <div className="flex justify-center pb-2">
         <div className="w-32 h-1 bg-black rounded-full"></div>
@@ -34,12 +34,17 @@ export default function BottomNavigation() {
               <motion.button
                 key={item.href}
                 whileTap={{ scale: 0.95 }}
+                whileHover={{ scale: 1.05 }}
                 onClick={() => router.push(item.href)}
                 className={`flex flex-col items-center py-2 px-3 rounded-xl transition-all duration-200 ${
                   isActive 
                     ? 'bg-blue-100 text-blue-600' 
-                    : 'text-gray-500 hover:text-gray-700'
+                    : 'text-gray-500 hover:text-gray-700 active:bg-gray-100'
                 }`}
+                style={{ 
+                  WebkitTapHighlightColor: 'transparent',
+                  touchAction: 'manipulation'
+                }}
               >
                 <Icon 
                   size={20} 

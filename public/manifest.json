@@ -1,0 +1,63 @@
+{
+  "name": "VoicemailAI Mobile",
+  "short_name": "VoicemailAI",
+  "description": "AI-powered voicemail transcription and management",
+  "start_url": "/mobile-v3",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#000000",
+  "background_color": "#f9fafb",
+  "scope": "/mobile-v3",
+  "categories": ["productivity", "business", "communication"],
+  "lang": "nl",
+  "icons": [
+    {
+      "src": "/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshot-mobile.png",
+      "sizes": "390x844",
+      "type": "image/png",
+      "form_factor": "narrow"
+    }
+  ],
+  "prefer_related_applications": false,
+  "related_applications": [],
+  "shortcuts": [
+    {
+      "name": "Transcripties",
+      "short_name": "Transcripties",
+      "description": "Bekijk je voicemail transcripties",
+      "url": "/mobile-v3/transcriptions",
+      "icons": [
+        {
+          "src": "/icon-192x192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Agenda",
+      "short_name": "Agenda",
+      "description": "Bekijk je agenda",
+      "url": "/mobile-v3/calendar",
+      "icons": [
+        {
+          "src": "/icon-192x192.png",
+          "sizes": "192x192"
+        }
+      ]
+    }
+  ]
+}

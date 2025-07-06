@@ -14,7 +14,18 @@ export function getSupabase() {
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (!supabaseUrl || !supabaseAnonKey) {
-    console.warn('Missing Supabase environment variables for client');
+    console.error('Missing Supabase environment variables for client:', {
+      hasUrl: !!supabaseUrl,
+      hasKey: !!supabaseAnonKey,
+      url: supabaseUrl?.substring(0, 30) + '...',
+      keyStart: supabaseAnonKey?.substring(0, 10) + '...'
+    });
+    return null;
+  }
+
+  // Validate that the key is not a placeholder
+  if (supabaseAnonKey === 'your_supabase_anon_key_here' || supabaseAnonKey.includes('your_')) {
+    console.error('Supabase anon key appears to be a placeholder value');
     return null;
   }
 
@@ -68,7 +79,16 @@ export function getSupabaseAdmin() {
   const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   if (!supabaseUrl || !supabaseServiceKey) {
-    console.warn('Missing Supabase environment variables for admin client');
+    console.error('Missing Supabase environment variables for admin client:', {
+      hasUrl: !!supabaseUrl,
+      hasServiceKey: !!supabaseServiceKey
+    });
+    return null;
+  }
+
+  // Validate that the service key is not a placeholder
+  if (supabaseServiceKey === 'your_supabase_service_role_key_here' || supabaseServiceKey.includes('your_')) {
+    console.error('Supabase service role key appears to be a placeholder value');
     return null;
   }
 
