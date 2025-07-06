@@ -94,10 +94,10 @@ export async function POST(request: Request) {
 
     // Create maps for easier comparison
     const stripeMap = new Map(
-      stripeSubs.data.map(sub => [sub.id, sub])
+      stripeSubs.data.map((sub: any) => [sub.id, sub])
     );
     const dbMap = new Map(
-      dbSubs.map(sub => [sub.id, sub])
+      dbSubs.map((sub: any) => [sub.id, sub])
     );
 
     const updates = [];
