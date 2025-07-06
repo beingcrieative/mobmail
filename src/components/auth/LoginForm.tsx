@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { toast } from 'react-toastify';
-import { supabase } from '@/lib/supabase';
+import { getSupabase } from '@/lib/supabase';
 
 export default function LoginForm() {
   const [email, setEmail] = useState('');
@@ -16,6 +16,13 @@ export default function LoginForm() {
 
     try {
       console.log('Attempting to sign in with:', email);
+      
+      const supabase = getSupabase();
+      if (!supabase) {
+        toast.error('Authentication service is currently unavailable');
+        setLoading(false);
+        return;
+      }
       
       // Sign in with email and password
       const { data, error } = await supabase.auth.signInWithPassword({

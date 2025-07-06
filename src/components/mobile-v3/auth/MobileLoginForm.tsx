@@ -5,7 +5,7 @@ import { motion } from 'framer-motion';
 import { ArrowLeft, Mail, Lock, Eye, EyeOff } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
+import { getSupabase } from '@/lib/supabase';
 
 export default function MobileLoginForm() {
   const [email, setEmail] = useState('');
@@ -20,6 +20,13 @@ export default function MobileLoginForm() {
 
     try {
       console.log('Attempting to sign in with:', email);
+      
+      const supabase = getSupabase();
+      if (!supabase) {
+        toast.error('Authentication service is currently unavailable');
+        setLoading(false);
+        return;
+      }
       
       // Sign in with email and password
       const { data, error } = await supabase.auth.signInWithPassword({

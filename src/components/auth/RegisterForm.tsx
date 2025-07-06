@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { supabase } from '@/lib/supabase';
+import { getSupabase } from '@/lib/supabase';
 import { toast } from 'react-toastify';
 
 export default function RegisterForm() {
@@ -18,6 +18,13 @@ export default function RegisterForm() {
     setLoading(true);
 
     try {
+      const supabase = getSupabase();
+      if (!supabase) {
+        toast.error('Authentication service is currently unavailable');
+        setLoading(false);
+        return;
+      }
+      
       const { error } = await supabase.auth.signUp({
         email,
         password,

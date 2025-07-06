@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase';
+import { getSupabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 import { toast } from 'react-toastify';
 import UserProfileForm from '@/components/settings/UserProfileForm';
@@ -34,6 +34,12 @@ export default function SettingsPage() {
     const getUserInfo = async () => {
       try {
         // Check if user is authenticated
+        const supabase = getSupabase();
+        if (!supabase) {
+          toast.error('Database is momenteel niet beschikbaar.');
+          return;
+        }
+        
         const { data: sessionData } = await supabase.auth.getSession();
         
         if (!sessionData.session) {
