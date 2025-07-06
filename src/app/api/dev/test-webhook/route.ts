@@ -3,7 +3,7 @@ import { getSupabaseAdmin } from '@/lib/supabase';
 import { createHmac } from 'crypto';
 
 // Only allow this route in development mode
-const isDevelopment = process.env.NODE_ENV !== 'production';
+const isDevelopment = process.env.NODE_ENV === 'development';
 
 // Helper function to generate Stripe signature
 function generateStripeSignature(payload: string, secret: string): string {
