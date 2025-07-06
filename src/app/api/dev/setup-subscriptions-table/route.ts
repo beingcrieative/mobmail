@@ -1,16 +1,10 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { getSupabaseAdmin } from '@/lib/supabase';
 import fs from 'fs';
 import path from 'path';
 
 // Only allow this route in development mode
 const isDevelopment = process.env.NODE_ENV !== 'production';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-
-// Initialize Supabase client with service role key for admin access
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 export async function GET(request: Request) {
   // Prevent use in production
@@ -22,6 +16,14 @@ export async function GET(request: Request) {
   }
 
   try {
+    const supabase = getSupabaseAdmin();
+    if (!supabase) {
+      return NextResponse.json(
+        { error: 'Database is currently unavailable' },
+        { status: 503 }
+      );
+    }
+
     // Read the migration file
     const migrationFilePath = path.join(process.cwd(), 'supabase/migrations/20240710_create_subscriptions_table.sql');
     let sql;
