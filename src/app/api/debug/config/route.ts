@@ -1,10 +1,7 @@
 import { NextResponse } from 'next/server';
 
 export async function GET() {
-  // Only allow in non-production for security
-  if (process.env.NODE_ENV === 'production') {
-    return NextResponse.json({ error: 'Not available in production' }, { status: 403 });
-  }
+  // Temporarily allow in production for debugging (remove after fixing)
 
   const config = {
     supabase: {
