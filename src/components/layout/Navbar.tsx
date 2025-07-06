@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { toast } from 'react-toastify';
-import { supabase } from '@/lib/supabase';
+import { getSupabase } from '@/lib/supabase';
 
 export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -83,7 +83,10 @@ export default function Navbar() {
       document.cookie = 'authToken=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
       
       // Also sign out from Supabase
-      await supabase.auth.signOut();
+      const supabase = getSupabase();
+      if (supabase) {
+        await supabase.auth.signOut();
+      }
       
       toast.success('Je bent succesvol uitgelogd.');
       
