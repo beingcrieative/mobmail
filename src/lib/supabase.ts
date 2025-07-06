@@ -18,9 +18,11 @@ export function getSupabase() {
     return null;
   }
 
-  // Log Supabase configuration for debugging
-  console.log('Supabase URL:', supabaseUrl);
-  console.log('Supabase Key:', supabaseAnonKey.substring(0, 10) + '...');
+  // Log Supabase configuration for debugging (development only)
+  if (process.env.NODE_ENV === 'development') {
+    console.log('Supabase URL:', supabaseUrl);
+    console.log('Supabase Key:', supabaseAnonKey.substring(0, 10) + '...');
+  }
 
   // Create and cache the Supabase instance
   supabaseInstance = createClient(supabaseUrl, supabaseAnonKey, {

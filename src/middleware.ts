@@ -19,12 +19,16 @@ export async function middleware(request: NextRequest) {
     }
   }
   
-  // Log the current path for debugging
-  console.log(`Middleware processing path: ${request.nextUrl.pathname}`);
+  // Log the current path for debugging (development only)
+  if (process.env.NODE_ENV === 'development') {
+    console.log(`Middleware processing path: ${request.nextUrl.pathname}`);
+  }
   
   // Skip middleware for API routes but add security headers
   if (request.nextUrl.pathname.startsWith('/api')) {
-    console.log('Processing API route with security headers');
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Processing API route with security headers');
+    }
     const response = NextResponse.next();
     
     // Add security headers to API responses
@@ -54,17 +58,23 @@ export async function middleware(request: NextRequest) {
   
   const isAuthenticated = userId && userEmail && authToken;
   
-  console.log(`Auth check - User authenticated: ${!!isAuthenticated}, Path: ${request.nextUrl.pathname}`);
+  if (process.env.NODE_ENV === 'development') {
+    console.log(`Auth check - User authenticated: ${!!isAuthenticated}, Path: ${request.nextUrl.pathname}`);
+  }
   
   // Protected routes - mobile-v3 requires authentication
   if (!isAuthenticated && request.nextUrl.pathname.startsWith('/mobile-v3')) {
-    console.log('No authentication found, redirecting to login');
+    if (process.env.NODE_ENV === 'development') {
+      console.log('No authentication found, redirecting to login');
+    }
     return NextResponse.redirect(new URL('/login', request.url));
   }
 
   // Auth routes - redirect to mobile-v3 if already logged in
   if (isAuthenticated && (request.nextUrl.pathname.startsWith('/login') || request.nextUrl.pathname.startsWith('/register'))) {
-    console.log('Authentication found, redirecting to mobile-v3');
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Authentication found, redirecting to mobile-v3');
+    }
     return NextResponse.redirect(new URL('/mobile-v3', request.url));
   }
 
