@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { headers } from 'next/headers';
-import stripe from '@/lib/stripe';
+import { getStripe } from '@/lib/stripe';
 import { createClient } from '@supabase/supabase-js';
 
 // Initialize Supabase client
@@ -23,6 +23,15 @@ try {
 export async function POST(request: Request) {
   try {
     console.log('Received Stripe webhook event');
+    
+    const stripe = getStripe();
+    if (!stripe) {
+      console.error('Stripe not available for webhook processing');
+      return new NextResponse(
+        JSON.stringify({ error: 'Payment processing is currently unavailable' }), 
+        { status: 503, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
     
     const payload = await request.text();
     const headersList = await headers();

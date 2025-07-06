@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import stripe from '@/lib/stripe';
+import { getStripe } from '@/lib/stripe';
 
 export async function POST(request: Request) {
   try {
@@ -9,6 +9,14 @@ export async function POST(request: Request) {
       return new NextResponse(
         JSON.stringify({ error: 'Session ID is required' }), 
         { status: 400, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const stripe = getStripe();
+    if (!stripe) {
+      return new NextResponse(
+        JSON.stringify({ error: 'Payment processing is currently unavailable' }), 
+        { status: 503, headers: { 'Content-Type': 'application/json' } }
       );
     }
 
