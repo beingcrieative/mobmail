@@ -35,8 +35,12 @@ export async function middleware(request: NextRequest) {
     return response;
   }
   
-  // Block access to non-mobile routes for mobile-only deployment
-  const allowedPaths = ['/', '/mobile-v3', '/login', '/register', '/api', '/_next', '/favicon.ico'];
+  // Allow access to all public routes
+  const allowedPaths = [
+    '/', '/mobile-v3', '/login', '/register', '/forgot-password', 
+    '/pricing', '/features', '/contact', '/about', '/blog', '/privacy', '/terms', '/cookies',
+    '/api', '/_next', '/favicon.ico'
+  ];
   const isAllowedPath = allowedPaths.some(path => request.nextUrl.pathname.startsWith(path));
   
   if (!isAllowedPath) {
