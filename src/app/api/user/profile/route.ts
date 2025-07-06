@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { getSupabaseAdmin } from '@/lib/supabase';
 import { createClient } from '@supabase/supabase-js';
 
 interface UserProfile {
@@ -26,6 +26,14 @@ export async function GET(request: NextRequest) {
     }
     
     console.log('Fetching profile for user:', userId);
+    
+    const supabase = getSupabaseAdmin();
+    if (!supabase) {
+      return NextResponse.json(
+        { error: 'Database is currently unavailable' },
+        { status: 503 }
+      );
+    }
     
     // Get profile from database
     const { data: profile, error } = await supabase
@@ -95,6 +103,14 @@ export async function PUT(request: NextRequest) {
     console.log('Updating profile for user:', userId);
     
     const { name, companyName, mobileNumber, information, calUsername, calApiKey, calEventTypeId } = await request.json();
+    
+    const supabase = getSupabaseAdmin();
+    if (!supabase) {
+      return NextResponse.json(
+        { error: 'Database is currently unavailable' },
+        { status: 503 }
+      );
+    }
     
     // Check if profile exists
     const { data: existingProfile } = await supabase
