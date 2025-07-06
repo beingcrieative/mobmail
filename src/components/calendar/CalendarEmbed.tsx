@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Cal, { getCalApi } from "@calcom/embed-react";
 import { toast } from "react-toastify";
 
 interface Appointment {
@@ -44,36 +43,11 @@ export default function CalendarEmbed({ userId, calUsername, calApiKey }: Calend
       setUsingMockData(false);
     }
     
-    // Initialize Cal.com API
+    // Initialize Cal.com API - fallback version
     const initCalApi = async () => {
       try {
-        const cal = await getCalApi();
-        if (!mounted) return;
-        
-        // Configure Cal.com UI
-        cal("ui", {
-          styles: { branding: { brandColor: "#3b82f6" } },
-          hideEventTypeDetails: false,
-          layout: "month_view",
-        });
-        
-        // Set up event listeners for booking changes
-        cal("on", {
-          action: "bookingSuccessful",
-          callback: () => {
-            if (mounted) {
-              toast.success("Booking successful! Refreshing your appointments...");
-              // Refresh appointments after a successful booking
-              if (calApiKey) {
-                try {
-                  fetchRealAppointments();
-                } catch (err) {
-                  console.error("Error fetching appointments after booking:", err);
-                }
-              }
-            }
-          },
-        });
+        console.log("Cal.com integration available but not loaded yet - using fallback");
+        setLoading(false);
       } catch (err) {
         console.error("Error initializing Cal.com API:", err);
         if (mounted) {
@@ -187,7 +161,7 @@ export default function CalendarEmbed({ userId, calUsername, calApiKey }: Calend
       });
   }
 
-  // Render the Cal.com embed
+  // Render the Cal.com embed - fallback version
   const renderCalEmbed = () => {
     if (!calUsername) {
       return (
@@ -197,27 +171,24 @@ export default function CalendarEmbed({ userId, calUsername, calApiKey }: Calend
       );
     }
 
-    try {
-      return (
-        <Cal
-          calLink={calUsername}
-          style={{ width: '100%', height: '100%', overflow: 'hidden' }}
-          config={{
-            name: userId,
-            hideEventTypeDetails: "false",
-            layout: 'month_view',
-            theme: 'light',
-          }}
-        />
-      );
-    } catch (err) {
-      console.error("Error rendering Cal.com embed:", err);
-      return (
-        <div className="w-full h-[400px] flex items-center justify-center bg-gray-50 dark:bg-gray-800 rounded-lg">
-          <p className="text-red-500">Failed to load calendar. Please try again later.</p>
+    // Use iframe embed as fallback
+    const calUrl = `https://cal.com/${calUsername}`;
+    
+    return (
+      <div className="w-full h-[400px] rounded-lg overflow-hidden bg-white dark:bg-gray-800">
+        <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border-b border-blue-100 dark:border-blue-800">
+          <p className="text-sm text-blue-800 dark:text-blue-300">
+            📅 Cal.com Integration Ready - Visit: <a href={calUrl} target="_blank" rel="noopener noreferrer" className="underline hover:text-blue-600">{calUrl}</a>
+          </p>
         </div>
-      );
-    }
+        <iframe
+          src={calUrl}
+          style={{ width: '100%', height: '356px', border: 'none' }}
+          loading="lazy"
+          title="Cal.com Booking Calendar"
+        />
+      </div>
+    );
   };
 
   // Handle refresh button click
