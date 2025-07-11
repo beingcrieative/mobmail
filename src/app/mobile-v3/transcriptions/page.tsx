@@ -26,10 +26,15 @@ interface Transcription {
   externalNumber: string;
   transcriptSummary: string;
   customerName: string;
+  customer_name: string; // Database field
   companyName: string;
+  company_name: string; // Database field
+  caller_phone: string; // Database field
+  callSuccessful: string; // Database field for priority
   created_at: string;
   client_id?: string;
 }
+
 
 export default function TranscriptionsPage() {
   const [transcriptions, setTranscriptions] = useState<Transcription[]>([]);
@@ -39,7 +44,7 @@ export default function TranscriptionsPage() {
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [dateFilter, setDateFilter] = useState<'all' | 'today' | 'week' | 'month'>('all');
-  const [sortBy, setSortBy] = useState<'date' | 'duration' | 'caller'>('date');
+  const [sortBy, setSortBy] = useState<'date' | 'duration'>('date');
   const [showFilters, setShowFilters] = useState(false);
   const router = useRouter();
 
@@ -50,6 +55,16 @@ export default function TranscriptionsPage() {
   useEffect(() => {
     filterAndSortTranscriptions();
   }, [transcriptions, searchTerm, dateFilter, sortBy]);
+
+  // Get call type based on duration
+  const getCallType = (transcription: Transcription): 'short' | 'medium' | 'long' => {
+    const duration = transcription.callDuration || 0;
+    
+    if (duration < 60) return 'short';
+    if (duration < 180) return 'medium';
+    return 'long';
+  };
+
 
   const fetchTranscriptions = async () => {
     try {
@@ -113,11 +128,12 @@ export default function TranscriptionsPage() {
     // Apply search filter
     if (searchTerm) {
       filtered = filtered.filter(t => 
-        t.customerName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        t.externalNumber?.includes(searchTerm) ||
-        t.transcriptSummary?.toLowerCase().includes(searchTerm.toLowerCase())
+        (t.customerName || t.customer_name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (t.externalNumber || t.caller_phone || '').includes(searchTerm) ||
+        (t.transcriptSummary || '').toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
+
 
     // Apply date filter
     const now = new Date();
@@ -139,7 +155,7 @@ export default function TranscriptionsPage() {
         break;
     }
 
-    // Apply sorting
+    // Apply sorting - simplified
     switch (sortBy) {
       case 'date':
         filtered.sort((a, b) => b.startTime - a.startTime);
@@ -147,8 +163,9 @@ export default function TranscriptionsPage() {
       case 'duration':
         filtered.sort((a, b) => b.callDuration - a.callDuration);
         break;
-      case 'caller':
-        filtered.sort((a, b) => (a.customerName || '').localeCompare(b.customerName || ''));
+      default:
+        // Default sorting by recency
+        filtered.sort((a, b) => b.startTime - a.startTime);
         break;
     }
 
@@ -180,6 +197,12 @@ export default function TranscriptionsPage() {
     return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
   };
 
+  const formatMinutes = (minutes: number) => {
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    return hours > 0 ? `${hours}u ${mins}m` : `${mins}m`;
+  };
+
   const getTimeAgo = (timestamp: number) => {
     const now = Math.floor(Date.now() / 1000);
     const diffInSeconds = now - timestamp;
@@ -208,155 +231,146 @@ export default function TranscriptionsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
+    <div className="min-h-screen pb-20" style={{
+      background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)'
+    }}>
       <Header title="Transcripties" showBack />
 
       <div className="px-4 py-4">
-        {/* Stats Overview */}
+        {/* Header Stats - Enhanced Analytics Style */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-white rounded-2xl p-6 mb-6 shadow-sm border border-gray-100"
+          className="grid grid-cols-2 gap-4 mb-6"
         >
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-900">Overzicht</h2>
-            <motion.button
-              whileTap={{ scale: 0.95 }}
-              onClick={handleRefresh}
-              disabled={refreshing}
-              className="p-2 rounded-full bg-blue-100 hover:bg-blue-200 disabled:opacity-50"
-            >
-              <RefreshCw size={16} className={`text-blue-600 ${refreshing ? 'animate-spin' : ''}`} />
-            </motion.button>
-          </div>
-          
-          <div className="grid grid-cols-3 gap-4 text-center">
-            <div>
-              <p className="text-2xl font-bold text-blue-600">{transcriptions.length}</p>
-              <p className="text-xs text-gray-600">Totaal</p>
+          <motion.div 
+            whileHover={{ y: -2 }}
+            className="rounded-xl p-5 border border-slate-200 transition-all duration-200 ease-in-out hover:shadow-lg"
+            style={{
+              background: 'rgba(255, 255, 255, 0.95)',
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.12)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.08)';
+            }}
+          >
+            <div className="flex items-center justify-between mb-3" style={{
+              background: 'rgba(99, 102, 241, 0.05)',
+              margin: '-20px -20px 12px -20px',
+              padding: '12px 20px',
+              borderBottom: '1px solid #e2e8f0',
+              borderRadius: '12px 12px 0 0'
+            }}>
+              <Phone size={20} className="text-blue-500" />
+              <motion.button
+                whileTap={{ scale: 0.95 }}
+                onClick={handleRefresh}
+                disabled={refreshing}
+                className="p-1 rounded bg-white/80 hover:bg-white disabled:opacity-50 transition-colors"
+              >
+                <RefreshCw size={14} className={`text-gray-600 ${refreshing ? 'animate-spin' : ''}`} />
+              </motion.button>
             </div>
-            <div>
-              <p className="text-2xl font-bold text-green-600">
+            <p className="text-2xl font-bold text-gray-900">{transcriptions.length}</p>
+            <p className="text-sm text-gray-600">Totaal gesprekken</p>
+          </motion.div>
+          
+          <motion.div 
+            whileHover={{ y: -2 }}
+            className="rounded-xl p-5 border border-slate-200 transition-all duration-200 ease-in-out hover:shadow-lg"
+            style={{
+              background: 'rgba(255, 255, 255, 0.95)',
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.12)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.08)';
+            }}
+          >
+            <div className="flex items-center justify-between mb-3" style={{
+              background: 'rgba(99, 102, 241, 0.05)',
+              margin: '-20px -20px 12px -20px',
+              padding: '12px 20px',
+              borderBottom: '1px solid #e2e8f0',
+              borderRadius: '12px 12px 0 0'
+            }}>
+              <Clock size={20} className="text-green-500" />
+              <span className="text-xs text-blue-600 font-medium bg-blue-100 px-2 py-1 rounded-full">
                 {transcriptions.filter(t => {
                   const today = new Date();
                   const todayStart = Math.floor(new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime() / 1000);
                   return t.startTime >= todayStart;
                 }).length}
-              </p>
-              <p className="text-xs text-gray-600">Vandaag</p>
+              </span>
             </div>
-            <div>
-              <p className="text-2xl font-bold text-purple-600">
-                {transcriptions.length > 0 
-                  ? formatDuration(Math.round(transcriptions.reduce((sum, t) => sum + t.callDuration, 0) / transcriptions.length))
-                  : '0:00'
-                }
-              </p>
-              <p className="text-xs text-gray-600">Gem. duur</p>
-            </div>
-          </div>
+            <p className="text-2xl font-bold text-gray-900">
+              {transcriptions.length > 0 
+                ? formatMinutes(Math.round(transcriptions.reduce((sum, t) => sum + t.callDuration, 0) / transcriptions.length / 60))
+                : '0m'
+              }
+            </p>
+            <p className="text-sm text-gray-600">Gem. gespreksduur</p>
+          </motion.div>
         </motion.div>
 
-        {/* Search and Filters */}
+        {/* Enhanced Filters */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="bg-white rounded-2xl p-4 mb-6 shadow-sm border border-gray-100"
+          className="mb-6"
         >
-          {/* Search */}
-          <div className="relative mb-4">
+          <div className="flex space-x-2 rounded-xl p-1 border border-slate-200 mb-4 transition-all duration-200"
+            style={{
+              background: 'rgba(255, 255, 255, 0.95)',
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)'
+            }}>
+            {[
+              { key: 'all', label: 'Alle' },
+              { key: 'today', label: 'Vandaag' },
+              { key: 'week', label: 'Deze week' },
+            ].map((filter) => (
+              <motion.button
+                key={filter.key}
+                whileTap={{ scale: 0.95 }}
+                whileHover={{ y: -1 }}
+                onClick={() => setDateFilter(filter.key as any)}
+                className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all duration-200 ${
+                  dateFilter === filter.key
+                    ? 'bg-blue-500 text-white shadow-sm'
+                    : 'text-gray-600 hover:bg-gray-100'
+                }`}
+              >
+                {filter.label}
+              </motion.button>
+            ))}
+          </div>
+          
+          <div className="relative">
             <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
             <input
               type="text"
-              placeholder="Zoek op naam, nummer of inhoud..."
+              placeholder="Zoek in gesprekken..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+              style={{
+                background: 'rgba(255, 255, 255, 0.95)',
+                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)'
+              }}
             />
           </div>
-
-          {/* Filter Toggle */}
-          <motion.button
-            whileTap={{ scale: 0.95 }}
-            onClick={() => setShowFilters(!showFilters)}
-            className="flex items-center justify-between w-full p-2 bg-gray-50 rounded-lg"
-          >
-            <div className="flex items-center">
-              <Filter size={16} className="text-gray-600 mr-2" />
-              <span className="text-sm font-medium text-gray-700">Filters</span>
-            </div>
-            {showFilters ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-          </motion.button>
-
-          {/* Filter Options */}
-          <AnimatePresence>
-            {showFilters && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                className="mt-4 space-y-4"
-              >
-                {/* Date Filter */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Periode</label>
-                  <div className="grid grid-cols-4 gap-2">
-                    {[
-                      { key: 'all', label: 'Alle' },
-                      { key: 'today', label: 'Vandaag' },
-                      { key: 'week', label: 'Week' },
-                      { key: 'month', label: 'Maand' }
-                    ].map((filter) => (
-                      <motion.button
-                        key={filter.key}
-                        whileTap={{ scale: 0.95 }}
-                        onClick={() => setDateFilter(filter.key as any)}
-                        className={`py-2 px-3 rounded-lg text-xs font-medium transition-colors ${
-                          dateFilter === filter.key
-                            ? 'bg-blue-500 text-white'
-                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                        }`}
-                      >
-                        {filter.label}
-                      </motion.button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Sort Filter */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Sorteren op</label>
-                  <div className="grid grid-cols-3 gap-2">
-                    {[
-                      { key: 'date', label: 'Datum' },
-                      { key: 'duration', label: 'Duur' },
-                      { key: 'caller', label: 'Beller' }
-                    ].map((sort) => (
-                      <motion.button
-                        key={sort.key}
-                        whileTap={{ scale: 0.95 }}
-                        onClick={() => setSortBy(sort.key as any)}
-                        className={`py-2 px-3 rounded-lg text-xs font-medium transition-colors ${
-                          sortBy === sort.key
-                            ? 'bg-blue-500 text-white'
-                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                        }`}
-                      >
-                        {sort.label}
-                      </motion.button>
-                    ))}
-                  </div>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
         </motion.div>
 
-        {/* Results Count */}
-        <div className="mb-4">
+        <div className="mb-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">Recente gesprekken</h3>
           <p className="text-sm text-gray-600">
-            {filteredTranscriptions.length} van {transcriptions.length} transcripties
+            {filteredTranscriptions.length} van {transcriptions.length} gesprekken
           </p>
         </div>
 
@@ -418,58 +432,97 @@ function TranscriptionCard({
   getTimeAgo,
   index
 }: TranscriptionCardProps) {
+  const customerName = transcription.customerName || transcription.customer_name || 'Onbekende beller';
+  const companyName = transcription.companyName || transcription.company_name || '';
+  const phoneNumber = transcription.externalNumber || transcription.caller_phone || '';
+  const summary = transcription.transcriptSummary || '';  
+  const callType = transcription.callDuration < 60 ? 'Kort' : transcription.callDuration < 180 ? 'Normaal' : 'Lang';
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.05 }}
-      className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden"
+      whileHover={{ y: -2 }}
+      className="rounded-xl p-5 mb-4 border border-slate-200 transition-all duration-200 ease-in-out hover:shadow-lg"
+      style={{
+        background: 'rgba(255, 255, 255, 0.95)',
+        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)'
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.12)';
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.08)';
+      }}
     >
-      {/* Card Header */}
-      <div className="p-4">
-        <div className="flex items-start justify-between mb-3">
-          <div className="flex-1">
-            <div className="flex items-center space-x-2 mb-1">
-              <User size={16} className="text-gray-400" />
-              <h3 className="font-semibold text-gray-900">
-                {transcription.customerName || 'Onbekende beller'}
-              </h3>
-            </div>
-            <div className="flex items-center space-x-3 text-sm text-gray-500">
-              <span>{transcription.externalNumber}</span>
-              <span>•</span>
-              <span>{formatDuration(transcription.callDuration)}</span>
-              <span>•</span>
-              <span>{getTimeAgo(transcription.startTime)}</span>
-            </div>
+      {/* Header */}
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center space-x-3">
+          <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+            <Phone size={16} className="text-blue-600" />
           </div>
-          
-          <motion.button
-            whileTap={{ scale: 0.95 }}
-            onClick={onToggleExpand}
-            className="p-2 rounded-full bg-gray-100 hover:bg-gray-200"
-          >
-            <motion.div
-              animate={{ rotate: isExpanded ? 180 : 0 }}
-              transition={{ duration: 0.2 }}
-            >
-              <ChevronDown size={16} className="text-gray-600" />
-            </motion.div>
-          </motion.button>
+          <div>
+            <h3 className="font-semibold text-gray-900">{customerName}</h3>
+            <p className="text-sm text-gray-600">{getTimeAgo(transcription.startTime)}</p>
+          </div>
         </div>
+        <div className="text-right">
+          <span className="text-xs text-blue-600 font-medium bg-blue-100 px-2 py-1 rounded-full">
+            {callType}
+          </span>
+        </div>
+      </div>
 
-        {/* AI Summary */}
-        <div className="p-3 bg-blue-50 rounded-xl border border-blue-100">
-          <div className="flex items-start space-x-2">
-            <span className="text-lg">🤖</span>
-            <div>
-              <p className="text-sm font-medium text-blue-900 mb-1">AI Samenvatting</p>
-              <p className="text-sm text-blue-700">
-                {transcription.transcriptSummary || 'Geen samenvatting beschikbaar'}
-              </p>
-            </div>
-          </div>
+      {/* Call Details */}
+      <div className="grid grid-cols-2 gap-4 p-3 rounded-lg mb-4" style={{
+        background: 'rgba(248, 250, 252, 0.8)'
+      }}>
+        <div>
+          <span className="text-xs text-gray-500">Telefoonnummer</span>
+          <p className="font-medium text-gray-900 font-mono text-sm">{phoneNumber}</p>
         </div>
+        <div>
+          <span className="text-xs text-gray-500">Gespreksduur</span>
+          <p className="font-medium text-gray-900">{formatDuration(transcription.callDuration)}</p>
+        </div>
+        {companyName && (
+          <div className="col-span-2">
+            <span className="text-xs text-gray-500">Bedrijf</span>
+            <p className="font-medium text-gray-900">{companyName}</p>
+          </div>
+        )}
+      </div>
+
+      {/* Summary */}
+      {summary && (
+        <div className="mb-4">
+          <h4 className="text-sm font-medium text-gray-900 mb-2">Samenvatting</h4>
+          <p className="text-sm text-gray-600 leading-relaxed">
+            {summary.length > 120 ? summary.substring(0, 120) + '...' : summary}
+          </p>
+        </div>
+      )}
+
+      {/* Actions */}
+      <div className="flex space-x-2">
+        <motion.button
+          whileTap={{ scale: 0.95 }}
+          whileHover={{ y: -1 }}
+          className="flex-1 py-2 px-4 bg-blue-500 text-white rounded-lg text-sm font-medium flex items-center justify-center space-x-2 transition-all duration-200 hover:bg-blue-600 hover:shadow-sm"
+          onClick={() => window.open(`tel:${phoneNumber}`, '_self')}
+        >
+          <Phone size={14} />
+          <span>Bellen</span>
+        </motion.button>
+        <motion.button
+          whileTap={{ scale: 0.95 }}
+          whileHover={{ y: -1 }}
+          onClick={onToggleExpand}
+          className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-all duration-200"
+        >
+          <ChevronDown size={16} className={`text-gray-600 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
+        </motion.button>
       </div>
 
       {/* Expanded Content */}
@@ -479,11 +532,13 @@ function TranscriptionCard({
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            className="border-t border-gray-100"
+            className="border-t border-gray-100 mt-4 pt-4"
           >
-            <div className="p-4 space-y-4">
-              {/* Call Details */}
-              <div className="grid grid-cols-2 gap-4 p-3 bg-gray-50 rounded-lg">
+            <div className="space-y-4">
+              {/* Extended Details */}
+              <div className="grid grid-cols-2 gap-4 p-3 rounded-lg" style={{
+                background: 'rgba(248, 250, 252, 0.8)'
+              }}>
                 <div>
                   <span className="text-xs text-gray-500">Datum & Tijd</span>
                   <p className="font-medium text-gray-900">{formatTimestamp(transcription.startTime)}</p>
@@ -494,76 +549,56 @@ function TranscriptionCard({
                     {transcription.callDirection === 'inbound' ? 'Inkomend' : 'Uitgaand'}
                   </p>
                 </div>
-                {transcription.companyName && (
-                  <div className="col-span-2">
-                    <span className="text-xs text-gray-500">Bedrijf</span>
-                    <p className="font-medium text-gray-900">{transcription.companyName}</p>
-                  </div>
-                )}
               </div>
 
               {/* Full Transcript */}
               <div>
-                <h4 className="font-medium text-gray-900 mb-3 flex items-center">
-                  <FileText size={16} className="mr-2" />
-                  Volledige Transcriptie
-                </h4>
-                <div className="max-h-64 overflow-y-auto bg-gray-50 rounded-lg p-3">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="font-semibold text-gray-900 flex items-center">
+                    <FileText size={16} className="mr-2 text-gray-400" />
+                    Volledige transcriptie
+                  </h4>
+                </div>
+                <div className="max-h-64 overflow-y-auto rounded-lg p-4 border border-slate-200" style={{
+                  background: 'rgba(248, 250, 252, 0.6)'
+                }}>
                   {Array.isArray(transcription.transcript) && transcription.transcript.length > 0 ? (
                     <div className="space-y-3">
                       {transcription.transcript.map((message, idx) => (
                         message.message && (
-                          <div
-                            key={idx}
-                            className={`p-3 rounded-lg ${
-                              message.role === 'agent' 
-                                ? 'bg-blue-100 border-l-3 border-blue-400 ml-2' 
-                                : 'bg-green-100 border-l-3 border-green-400 mr-2'
-                            }`}
-                          >
-                            <div className="flex items-center justify-between mb-1">
-                              <span className="text-xs font-medium text-gray-700">
-                                {message.role === 'agent' ? '👤 Agent' : '📞 Beller'}
-                              </span>
-                              {message.timeInCallSecs !== undefined && (
-                                <span className="text-xs text-gray-500">
-                                  {formatDuration(message.timeInCallSecs)}
-                                </span>
-                              )}
+                          <div key={idx} className="flex items-start space-x-3">
+                            <div className="flex-shrink-0">
+                              <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
+                                message.role === 'agent' ? 'bg-blue-100' : 'bg-green-100'
+                              }`}>
+                                <div className={`w-2 h-2 rounded-full ${
+                                  message.role === 'agent' ? 'bg-blue-500' : 'bg-green-500'
+                                }`} />
+                              </div>
                             </div>
-                            <p className="text-sm text-gray-800">{message.message}</p>
+                            <div className="flex-1">
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="text-xs font-medium text-gray-600">
+                                  {message.role === 'agent' ? 'Agent' : 'Beller'}
+                                </span>
+                                {message.timeInCallSecs !== undefined && (
+                                  <span className="text-xs text-gray-500">
+                                    {formatDuration(message.timeInCallSecs)}
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-sm text-gray-800 leading-relaxed">{message.message}</p>
+                            </div>
                           </div>
                         )
                       ))}
                     </div>
                   ) : (
-                    <p className="text-sm text-gray-500 text-center py-4">
+                    <p className="text-sm text-gray-500 text-center py-8">
                       Geen gedetailleerde transcriptie beschikbaar
                     </p>
                   )}
                 </div>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex space-x-2">
-                <motion.button
-                  whileTap={{ scale: 0.95 }}
-                  className="flex-1 py-2 px-3 bg-blue-500 text-white rounded-lg text-sm font-medium"
-                >
-                  📞 Terugbellen
-                </motion.button>
-                <motion.button
-                  whileTap={{ scale: 0.95 }}
-                  className="flex-1 py-2 px-3 bg-green-500 text-white rounded-lg text-sm font-medium"
-                >
-                  ✉️ Email
-                </motion.button>
-                <motion.button
-                  whileTap={{ scale: 0.95 }}
-                  className="flex-1 py-2 px-3 bg-purple-500 text-white rounded-lg text-sm font-medium"
-                >
-                  📅 Afspraak
-                </motion.button>
               </div>
             </div>
           </motion.div>
