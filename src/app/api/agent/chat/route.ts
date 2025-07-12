@@ -20,11 +20,7 @@ interface ChatRequest {
   context?: Partial<AgentContext>;
 }
 
-// Initialize OpenRouter client
-const openai = new OpenAI({
-  baseURL: "https://openrouter.ai/api/v1",
-  apiKey: process.env.OPEN_ROUTER_API,
-});
+// OpenRouter client will be initialized per request to handle missing API keys gracefully
 
 const AGENT_SYSTEM_PROMPT = `Je bent een AI business assistant voor een Nederlandse ZZP'er. Je rol is om te helpen met:
 
@@ -73,6 +69,28 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    // Check for OpenRouter API key
+    const apiKey = process.env.OPEN_ROUTER_API;
+    
+    if (!apiKey || apiKey === 'your_openrouter_api_key_here') {
+      // Graceful fallback when API key is not configured
+      console.log('OpenRouter API key not configured, using fallback response');
+      
+      return NextResponse.json({
+        message: "Sorry, de AI assistant is momenteel niet beschikbaar. De API key is niet geconfigureerd. Je kunt wel alle andere functies van de app gebruiken.",
+        actions: [],
+        sessionId,
+        timestamp: Date.now(),
+        fallback: true
+      });
+    }
+
+    // Initialize OpenRouter client with validated API key
+    const openai = new OpenAI({
+      baseURL: "https://openrouter.ai/api/v1",
+      apiKey: apiKey,
+    });
 
     // Build context string for the AI
     const businessContext = context?.business ? `
