@@ -1,13 +1,33 @@
 'use client';
 
-import { ReactNode, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { ReactNode, useEffect, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useServiceWorker } from '@/lib/pwa/serviceWorker';
 
 interface MobileLayoutProps {
   children: ReactNode;
 }
 
 export default function MobileLayout({ children }: MobileLayoutProps) {
+  const [showUpdateNotification, setShowUpdateNotification] = useState(false);
+  const { status, updateAvailable, activateUpdate, isSupported } = useServiceWorker();
+
+  // Handle service worker update notifications
+  useEffect(() => {
+    if (updateAvailable) {
+      setShowUpdateNotification(true);
+    }
+  }, [updateAvailable]);
+
+  const handleInstallUpdate = async () => {
+    setShowUpdateNotification(false);
+    await activateUpdate();
+  };
+
+  const dismissUpdate = () => {
+    setShowUpdateNotification(false);
+  };
+
   useEffect(() => {
     // Apply mobile-specific meta tags and configuration
     const viewport = document.querySelector('meta[name="viewport"]');
@@ -168,8 +188,45 @@ export default function MobileLayout({ children }: MobileLayoutProps) {
           <div className="w-6 h-3 border border-white rounded-sm">
             <div className="w-full h-full bg-white rounded-sm"></div>
           </div>
+          {/* Service Worker Status Indicator */}
+          {isSupported && status.active && (
+            <div className="w-2 h-2 bg-green-400 rounded-full" title="PWA Active" />
+          )}
         </div>
       </div>
+      
+      {/* Update Notification */}
+      <AnimatePresence>
+        {showUpdateNotification && (
+          <motion.div
+            initial={{ opacity: 0, y: -50 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -50 }}
+            className="fixed top-16 left-4 right-4 z-50 bg-blue-600 text-white rounded-lg p-4 shadow-lg"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex-1">
+                <h4 className="font-semibold text-sm">App Update Beschikbaar</h4>
+                <p className="text-xs opacity-90">Nieuwe versie met verbeteringen klaar om te installeren</p>
+              </div>
+              <div className="flex space-x-2 ml-4">
+                <button
+                  onClick={dismissUpdate}
+                  className="px-3 py-1 text-xs bg-blue-700 rounded hover:bg-blue-800 transition-colors"
+                >
+                  Later
+                </button>
+                <button
+                  onClick={handleInstallUpdate}
+                  className="px-3 py-1 text-xs bg-white text-blue-600 rounded hover:bg-gray-100 transition-colors font-medium"
+                >
+                  Update
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
       
       {/* Main Content */}
       <motion.div
