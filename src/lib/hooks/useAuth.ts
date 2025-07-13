@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { secureStorage } from '@/lib/security/secureStorage';
 import { getSupabase } from '@/lib/supabase';
 
 interface AuthState {
@@ -55,36 +56,36 @@ export function useAuth(): AuthState & AuthActions {
     document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/`;
   }, []);
 
-  const getStoredValue = useCallback((key: string): string | null => {
+  const getStoredValue = useCallback(async (key: string): Promise<string | null> => {
     try {
-      // Try localStorage first, then cookies
-      const localValue = localStorage.getItem(key);
-      if (localValue) return localValue;
+      // Try secure storage first, then fallback to cookies
+      const secureValue = await secureStorage.getSecureItem<string>(key);
+      if (secureValue) return secureValue;
       
       return getCookie(key);
     } catch (error) {
-      console.warn(`Error reading ${key} from storage:`, error);
+      console.warn(`Error reading ${key} from secure storage:`, error);
       return getCookie(key);
     }
   }, [getCookie]);
 
-  const setStoredValue = useCallback((key: string, value: string) => {
+  const setStoredValue = useCallback(async (key: string, value: string) => {
     try {
-      // Store in both localStorage and cookies for redundancy
-      localStorage.setItem(key, value);
+      // Store in secure storage and cookies for redundancy
+      await secureStorage.setSecureItem(key, value, { fallbackToPlaintext: true });
       setCookie(key, value);
     } catch (error) {
-      console.warn(`Error storing ${key}:`, error);
+      console.warn(`Error storing ${key} in secure storage:`, error);
       // Fallback to cookies only
       setCookie(key, value);
     }
   }, [setCookie]);
 
-  const clearStoredValues = useCallback(() => {
+  const clearStoredValues = useCallback(async () => {
     try {
-      // Clear localStorage
+      // Clear secure storage and cookies
+      await secureStorage.clearAllSecureData();
       Object.values(STORAGE_KEYS).forEach(key => {
-        localStorage.removeItem(key);
         removeCookie(key);
       });
     } catch (error) {
@@ -101,9 +102,9 @@ export function useAuth(): AuthState & AuthActions {
 
     try {
       // Check stored authentication data
-      const userId = getStoredValue(STORAGE_KEYS.USER_ID);
-      const userEmail = getStoredValue(STORAGE_KEYS.USER_EMAIL);
-      const authToken = getStoredValue(STORAGE_KEYS.AUTH_TOKEN);
+      const userId = await getStoredValue(STORAGE_KEYS.USER_ID);
+      const userEmail = await getStoredValue(STORAGE_KEYS.USER_EMAIL);
+      const authToken = await getStoredValue(STORAGE_KEYS.AUTH_TOKEN);
 
       console.log('Auth check - stored values:', {
         hasUserId: !!userId,
@@ -154,9 +155,12 @@ export function useAuth(): AuthState & AuthActions {
       if (session && session.user) {
         // Session is valid, update stored values if needed
         if (session.user.id !== userId || session.user.email !== userEmail) {
-          setStoredValue(STORAGE_KEYS.USER_ID, session.user.id);
-          setStoredValue(STORAGE_KEYS.USER_EMAIL, session.user.email || '');
-          setStoredValue(STORAGE_KEYS.AUTH_TOKEN, session.access_token);
+          await setStoredValue(STORAGE_KEYS.USER_ID, session.user.id);
+          await setStoredValue(STORAGE_KEYS.USER_EMAIL, session.user.email || '');
+          await setStoredValue(STORAGE_KEYS.AUTH_TOKEN, session.access_token);
+          
+          // Set session token for encryption
+          secureStorage.setSessionToken(session.access_token);
         }
 
         setAuthState({
@@ -172,7 +176,7 @@ export function useAuth(): AuthState & AuthActions {
         // No valid session but we have stored auth data
         // This could indicate an expired session
         console.log('No valid session found, clearing stored auth');
-        clearStoredValues();
+        await clearStoredValues();
         setAuthState({
           isAuthenticated: false,
           user: null,
@@ -220,11 +224,14 @@ export function useAuth(): AuthState & AuthActions {
       }
 
       if (data?.session && data?.user) {
-        // Store authentication data
-        setStoredValue(STORAGE_KEYS.USER_ID, data.user.id);
-        setStoredValue(STORAGE_KEYS.USER_EMAIL, data.user.email || '');
-        setStoredValue(STORAGE_KEYS.AUTH_TOKEN, data.session.access_token);
-        setStoredValue(STORAGE_KEYS.SUPABASE_SESSION, JSON.stringify(data.session));
+        // Store authentication data securely
+        await setStoredValue(STORAGE_KEYS.USER_ID, data.user.id);
+        await setStoredValue(STORAGE_KEYS.USER_EMAIL, data.user.email || '');
+        await setStoredValue(STORAGE_KEYS.AUTH_TOKEN, data.session.access_token);
+        
+        // Set session token for encryption
+        secureStorage.setSessionToken(data.session.access_token);
+        await setStoredValue(STORAGE_KEYS.SUPABASE_SESSION, JSON.stringify(data.session));
 
         setAuthState({
           isAuthenticated: true,
@@ -268,7 +275,7 @@ export function useAuth(): AuthState & AuthActions {
       console.error('Logout error:', error);
     } finally {
       // Always clear stored values, even if signOut fails
-      clearStoredValues();
+      await clearStoredValues();
       setAuthState({
         isAuthenticated: false,
         user: null,

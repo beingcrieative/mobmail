@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
+import { securitySanitization } from '@/lib/security/sanitization';
 
 interface AgentContext {
   business: {
@@ -60,12 +61,79 @@ Antwoord altijd in dit JSON format:
 
 export async function POST(request: NextRequest) {
   try {
-    const body: ChatRequest = await request.json();
-    const { message, sessionId, context } = body;
+    // Get user identifier for rate limiting (from IP if no user ID available)
+    const userIp = request.headers.get('x-forwarded-for') || 
+                   request.headers.get('x-real-ip') || 
+                   'unknown';
+    const userAgent = request.headers.get('user-agent') || '';
+    const identifier = `${userIp}-${userAgent.substring(0, 20)}`;
 
-    if (!message || !sessionId) {
+    // Check rate limiting first
+    const rateLimitCheck = securitySanitization.checkRateLimit(
+      identifier, 
+      'agent-chat'
+    );
+
+    if (!rateLimitCheck.allowed) {
+      securitySanitization.logSecurityEvent({
+        type: 'rate_limit',
+        endpoint: '/api/agent/chat',
+        severity: 'medium',
+        details: { identifier, resetTime: rateLimitCheck.resetTime }
+      });
+
       return NextResponse.json(
-        { error: 'Message and sessionId are required' },
+        { 
+          error: 'Rate limit exceeded. Please try again later.',
+          resetTime: rateLimitCheck.resetTime
+        },
+        { 
+          status: 429,
+          headers: {
+            'X-RateLimit-Remaining': rateLimitCheck.remaining.toString(),
+            'X-RateLimit-Reset': rateLimitCheck.resetTime.toString()
+          }
+        }
+      );
+    }
+
+    // Parse and validate request body
+    const body: ChatRequest = await request.json();
+    
+    // Validate request structure
+    const validationResult = securitySanitization.validateAgentChatRequest.safeParse(body);
+    if (!validationResult.success) {
+      securitySanitization.logSecurityEvent({
+        type: 'validation_failure',
+        endpoint: '/api/agent/chat',
+        severity: 'medium',
+        details: { errors: validationResult.error.errors }
+      });
+
+      return NextResponse.json(
+        { error: 'Invalid request format' },
+        { status: 400 }
+      );
+    }
+
+    const { message, sessionId, context } = validationResult.data;
+
+    // Sanitize and validate user input
+    const sanitizedInput = securitySanitization.sanitizePromptInput(message);
+    
+    if (sanitizedInput.blocked) {
+      securitySanitization.logSecurityEvent({
+        type: 'injection_attempt',
+        endpoint: '/api/agent/chat',
+        severity: 'high',
+        details: { reason: sanitizedInput.reason, originalLength: message.length }
+      });
+
+      return NextResponse.json(
+        { 
+          error: 'Input contains potentially harmful content',
+          message: 'Sorry, ik kan je bericht niet verwerken. Probeer een andere formulering.'
+        },
         { status: 400 }
       );
     }
@@ -128,7 +196,7 @@ ${context.activeActions.map(a =>
         },
         {
           role: "user",
-          content: message
+          content: sanitizedInput.sanitizedInput
         }
       ],
       temperature: 0.7,
@@ -161,12 +229,34 @@ ${context.activeActions.map(a =>
       parsedResponse.actions = [];
     }
 
-    return NextResponse.json({
+    // Sanitize AI response content
+    parsedResponse.message = securitySanitization.sanitizeAiResponse(parsedResponse.message);
+    
+    // Sanitize action content
+    if (parsedResponse.actions && Array.isArray(parsedResponse.actions)) {
+      parsedResponse.actions = parsedResponse.actions.map((action: any) => ({
+        ...action,
+        title: securitySanitization.sanitizeHtml(action.title || '', { allowedTags: [] }),
+        description: securitySanitization.sanitizeHtml(action.description || '', { allowedTags: [] }),
+        content: securitySanitization.sanitizeHtml(action.content || '', { allowedTags: ['p', 'br'] })
+      }));
+    }
+
+    const response = NextResponse.json({
       message: parsedResponse.message,
       actions: parsedResponse.actions,
       sessionId,
       timestamp: Date.now()
     });
+
+    // Add security headers
+    response.headers.set('X-Content-Type-Options', 'nosniff');
+    response.headers.set('X-Frame-Options', 'DENY');
+    response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+    response.headers.set('X-RateLimit-Remaining', rateLimitCheck.remaining.toString());
+    response.headers.set('X-RateLimit-Reset', rateLimitCheck.resetTime.toString());
+
+    return response;
 
   } catch (error) {
     console.error('Agent chat error:', error);
