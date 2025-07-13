@@ -2,7 +2,7 @@
 
 import { ReactNode, useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useServiceWorker } from '@/lib/pwa/serviceWorker';
+// import { useServiceWorker } from '@/lib/pwa/serviceWorker'; // Temporarily disabled
 
 interface MobileLayoutProps {
   children: ReactNode;
@@ -10,7 +10,11 @@ interface MobileLayoutProps {
 
 export default function MobileLayout({ children }: MobileLayoutProps) {
   const [showUpdateNotification, setShowUpdateNotification] = useState(false);
-  const { status, updateAvailable, activateUpdate, isSupported } = useServiceWorker();
+  // const { status, updateAvailable, activateUpdate, isSupported } = useServiceWorker(); // Temporarily disabled
+  const status = { active: false };
+  const updateAvailable = false;
+  const activateUpdate = async () => {};
+  const isSupported = false;
 
   // Handle service worker update notifications
   useEffect(() => {
