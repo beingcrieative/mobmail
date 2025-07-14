@@ -40,7 +40,7 @@ class EncryptionService {
    * Derive encryption key from user session token
    */
   private async deriveKey(sessionToken: string, salt: Uint8Array): Promise<CryptoKey> {
-    const cacheKey = `${sessionToken}-${this.arrayBufferToBase64(salt)}`;
+    const cacheKey = `${sessionToken}-${this.arrayBufferToBase64(salt.buffer.slice(0) as ArrayBuffer)}`;
     
     // Return cached key if available
     if (this.keyCache.has(cacheKey)) {
@@ -150,8 +150,8 @@ class EncryptionService {
 
       return {
         encryptedData: this.arrayBufferToBase64(encryptedBuffer),
-        iv: this.arrayBufferToBase64(iv),
-        salt: this.arrayBufferToBase64(salt),
+        iv: this.arrayBufferToBase64(iv.buffer.slice(0) as ArrayBuffer),
+        salt: this.arrayBufferToBase64(salt.buffer.slice(0) as ArrayBuffer),
         timestamp: Date.now(),
         keyVersion: this.keyVersion,
       };
