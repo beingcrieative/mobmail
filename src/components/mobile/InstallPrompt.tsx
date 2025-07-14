@@ -63,12 +63,22 @@ export function InstallPrompt({
       clearError();
       
       try {
-        const success = await showInstallPrompt();
-        onInstallAttempt?.(success);
+        const result = await showInstallPrompt();
+        console.log('🔧 Install prompt result:', result);
         
-        if (success) {
-          setIsVisible(false);
+        onInstallAttempt?.(result.success);
+        
+        if (result.success) {
+          if (result.outcome === 'accepted') {
+            console.log('✅ User accepted installation');
+            setIsVisible(false);
+          } else if (result.outcome === 'dismissed') {
+            console.log('❌ User dismissed installation');
+            setShowInstructions(true);
+            setIsInstalling(false);
+          }
         } else {
+          console.log('⚠️ Install prompt failed:', result.error);
           // Show instructions as fallback
           setShowInstructions(true);
           setIsInstalling(false);
@@ -80,6 +90,7 @@ export function InstallPrompt({
         setIsInstalling(false);
       }
     } else {
+      console.log('📋 Showing manual installation instructions');
       setShowInstructions(true);
     }
   };
