@@ -3,15 +3,47 @@
 import Link from 'next/link';
 import ElevenLabsWidget from '@/components/demo/ElevenLabsWidget';
 import { useEffect, useState } from 'react';
+import { toast } from 'react-toastify';
 
 export default function DemoPage() {
   const [showElevenLabs, setShowElevenLabs] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [actionCompleted, setActionCompleted] = useState<string | null>(null);
   
   useEffect(() => {
     // Check environment variable for ElevenLabs widget toggle
     const enableElevenLabs = process.env.NEXT_PUBLIC_ENABLE_ELEVENLABS_CHAT === 'true';
     setShowElevenLabs(enableElevenLabs);
   }, []);
+
+  const handlePlayAudio = () => {
+    setIsPlaying(true);
+    toast.info('🎵 Demo audio wordt afgespeeld...');
+    
+    // Simulate audio playback
+    setTimeout(() => {
+      setIsPlaying(false);
+      toast.success('✅ Audio afgespeeld! In een echte omgeving zou je de voicemail nu beluisteren.');
+    }, 3000);
+  };
+
+  const handleDemoAction = (action: string) => {
+    setActionCompleted(action);
+    
+    const messages = {
+      'callback': '📞 Terugbel actie gestart! In de echte app zou dit je telefoon app openen.',
+      'reschedule': '📅 Afspraak verzet naar 15:00! In de echte app zou dit je agenda bijwerken.',
+      'email': '📧 E-mail concept gemaakt! In de echte app zou dit je e-mail app openen.',
+      'sms': '💬 SMS concept klaar! In de echte app zou dit een SMS versturen.'
+    };
+    
+    toast.success(messages[action as keyof typeof messages] || 'Actie uitgevoerd!');
+    
+    // Reset after 3 seconds
+    setTimeout(() => {
+      setActionCompleted(null);
+    }, 3000);
+  };
   
   return (
     <div className="bg-white dark:bg-gray-900">
@@ -85,8 +117,19 @@ export default function DemoPage() {
                           </svg>
                           <span className="ml-2 text-sm text-gray-700 dark:text-gray-300">0:42</span>
                         </div>
-                        <button className="px-3 py-1 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700">
-                          Afspelen
+                        <button 
+                          onClick={handlePlayAudio}
+                          disabled={isPlaying}
+                          className="px-3 py-1 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 disabled:bg-blue-400 transition-colors flex items-center gap-1"
+                        >
+                          {isPlaying ? (
+                            <>
+                              <div className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin"></div>
+                              Speelt af...
+                            </>
+                          ) : (
+                            'Afspelen'
+                          )}
                         </button>
                       </div>
                     </div>
@@ -116,29 +159,57 @@ export default function DemoPage() {
                     <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-2">Stap 3: Acties ondernemen</h4>
                     <div className="bg-gray-100 dark:bg-gray-700 rounded-lg p-4">
                       <div className="flex flex-wrap gap-2">
-                        <button className="px-3 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 flex items-center">
+                        <button 
+                          onClick={() => handleDemoAction('callback')}
+                          className={`px-3 py-2 text-white text-sm rounded-md flex items-center transition-colors ${
+                            actionCompleted === 'callback' 
+                              ? 'bg-green-600 hover:bg-green-700' 
+                              : 'bg-blue-600 hover:bg-blue-700'
+                          }`}
+                        >
                           <svg className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
                           </svg>
-                          Terugbellen
+                          {actionCompleted === 'callback' ? '✓ Gebeld!' : 'Terugbellen'}
                         </button>
-                        <button className="px-3 py-2 bg-green-600 text-white text-sm rounded-md hover:bg-green-700 flex items-center">
+                        <button 
+                          onClick={() => handleDemoAction('reschedule')}
+                          className={`px-3 py-2 text-white text-sm rounded-md flex items-center transition-colors ${
+                            actionCompleted === 'reschedule' 
+                              ? 'bg-green-600 hover:bg-green-700' 
+                              : 'bg-green-600 hover:bg-green-700'
+                          }`}
+                        >
                           <svg className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                           </svg>
-                          Afspraak verzetten
+                          {actionCompleted === 'reschedule' ? '✓ Verzet!' : 'Afspraak verzetten'}
                         </button>
-                        <button className="px-3 py-2 bg-purple-600 text-white text-sm rounded-md hover:bg-purple-700 flex items-center">
+                        <button 
+                          onClick={() => handleDemoAction('email')}
+                          className={`px-3 py-2 text-white text-sm rounded-md flex items-center transition-colors ${
+                            actionCompleted === 'email' 
+                              ? 'bg-green-600 hover:bg-green-700' 
+                              : 'bg-purple-600 hover:bg-purple-700'
+                          }`}
+                        >
                           <svg className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                           </svg>
-                          E-mail sturen
+                          {actionCompleted === 'email' ? '✓ Verstuurd!' : 'E-mail sturen'}
                         </button>
-                        <button className="px-3 py-2 bg-gray-600 text-white text-sm rounded-md hover:bg-gray-700 flex items-center">
+                        <button 
+                          onClick={() => handleDemoAction('sms')}
+                          className={`px-3 py-2 text-white text-sm rounded-md flex items-center transition-colors ${
+                            actionCompleted === 'sms' 
+                              ? 'bg-green-600 hover:bg-green-700' 
+                              : 'bg-gray-600 hover:bg-gray-700'
+                          }`}
+                        >
                           <svg className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                           </svg>
-                          SMS sturen
+                          {actionCompleted === 'sms' ? '✓ Verstuurd!' : 'SMS sturen'}
                         </button>
                       </div>
                     </div>
