@@ -566,28 +566,32 @@ function TranscriptionCard({
                     <div className="space-y-3">
                       {transcription.transcript.map((message, idx) => (
                         message.message && (
-                          <div key={idx} className="flex items-start space-x-3">
-                            <div className="flex-shrink-0">
-                              <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
-                                message.role === 'agent' ? 'bg-blue-100' : 'bg-green-100'
-                              }`}>
+                          <div key={idx} className={`flex ${message.role === 'agent' ? 'justify-start' : 'justify-end'} mb-3`}>
+                            <div className={`max-w-[80%] p-3 rounded-xl ${
+                              message.role === 'agent' 
+                                ? 'bg-blue-50 border border-blue-200 rounded-bl-sm' 
+                                : 'bg-green-50 border border-green-200 rounded-br-sm'
+                            }`}>
+                              <div className={`flex items-center mb-1 ${message.role === 'agent' ? 'flex-row' : 'flex-row-reverse'}`}>
                                 <div className={`w-2 h-2 rounded-full ${
-                                  message.role === 'agent' ? 'bg-blue-500' : 'bg-green-500'
-                                }`} />
-                              </div>
-                            </div>
-                            <div className="flex-1">
-                              <div className="flex items-center justify-between mb-1">
+                                  message.role === 'agent' ? 'bg-blue-500 mr-2' : 'bg-green-500 ml-2'
+                                }`}></div>
                                 <span className="text-xs font-medium text-gray-600">
                                   {message.role === 'agent' ? 'Agent' : 'Beller'}
                                 </span>
                                 {message.timeInCallSecs !== undefined && (
-                                  <span className="text-xs text-gray-500">
+                                  <span className={`text-xs text-gray-500 ${
+                                    message.role === 'agent' ? 'ml-auto' : 'mr-auto'
+                                  }`}>
                                     {formatDuration(message.timeInCallSecs)}
                                   </span>
                                 )}
                               </div>
-                              <p className="text-sm text-gray-800 leading-relaxed">{message.message}</p>
+                              <p className={`text-sm text-gray-800 leading-relaxed ${
+                                message.role === 'agent' ? 'text-left' : 'text-right'
+                              }`}>
+                                {message.message}
+                              </p>
                             </div>
                           </div>
                         )

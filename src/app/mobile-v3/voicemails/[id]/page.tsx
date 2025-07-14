@@ -241,28 +241,37 @@ export default function VoicemailDetailPage() {
                 message.message && (
                   <motion.div
                     key={index}
-                    initial={{ opacity: 0, x: -10 }}
+                    initial={{ opacity: 0, x: message.role === 'agent' ? -10 : 10 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: 0.05 * index }}
-                    className={`p-4 rounded-xl ${
-                      message.role === 'agent' 
-                        ? 'bg-blue-50 border-l-4 border-blue-400 ml-4' 
-                        : 'bg-green-50 border-l-4 border-green-400 mr-4'
-                    }`}
+                    className={`flex ${message.role === 'agent' ? 'justify-start' : 'justify-end'} mb-4`}
                   >
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-medium text-gray-700">
-                        {message.role === 'agent' ? '👤 Agent' : '📞 Beller'}
-                      </span>
-                      {message.timeInCallSecs !== undefined && (
-                        <span className="text-xs text-gray-500">
-                          {formatDuration(message.timeInCallSecs)}
+                    <div className={`max-w-[80%] p-4 rounded-2xl ${
+                      message.role === 'agent' 
+                        ? 'bg-blue-50 border border-blue-200 rounded-bl-sm' 
+                        : 'bg-green-50 border border-green-200 rounded-br-sm'
+                    }`}>
+                      <div className={`flex items-center mb-2 ${message.role === 'agent' ? 'flex-row' : 'flex-row-reverse'}`}>
+                        <div className={`w-3 h-3 rounded-full ${
+                          message.role === 'agent' ? 'bg-blue-500 mr-2' : 'bg-green-500 ml-2'
+                        }`}></div>
+                        <span className="text-sm font-medium text-gray-700">
+                          {message.role === 'agent' ? 'Agent' : 'Beller'}
                         </span>
-                      )}
+                        {message.timeInCallSecs !== undefined && (
+                          <span className={`text-xs text-gray-500 ${
+                            message.role === 'agent' ? 'ml-auto' : 'mr-auto'
+                          }`}>
+                            {formatDuration(message.timeInCallSecs)}
+                          </span>
+                        )}
+                      </div>
+                      <p className={`text-gray-800 leading-relaxed ${
+                        message.role === 'agent' ? 'text-left' : 'text-right'
+                      }`}>
+                        {message.message}
+                      </p>
                     </div>
-                    <p className="text-gray-800 leading-relaxed">
-                      {message.message}
-                    </p>
                   </motion.div>
                 )
               ))}
