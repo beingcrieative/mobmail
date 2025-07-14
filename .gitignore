@@ -58,6 +58,13 @@ Thumbs.db
 /tmp/
 /temp/
 
+# security - prevent committing sensitive data
+check-tables.js
+check-specific-tables.js
+temp_supabase_query.js
+*-temp.js
+*-test.js
+
 # logs
 logs
 *.log
