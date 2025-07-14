@@ -29,6 +29,10 @@ export default function Header({
     }
   };
 
+  const handleNotifications = () => {
+    router.push('/mobile-v3/notifications');
+  };
+
   return (
     <div className="bg-white/95 backdrop-blur-md border-b border-gray-200 px-4 py-3">
       <div className="flex items-center justify-between">
@@ -52,6 +56,7 @@ export default function Header({
           {showNotifications && (
             <motion.button
               whileTap={{ scale: 0.95 }}
+              onClick={handleNotifications}
               className="p-2 rounded-full bg-gray-100 hover:bg-gray-200 relative"
             >
               <Bell size={20} className="text-gray-600" />
