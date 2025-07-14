@@ -70,8 +70,7 @@ const nextConfig: NextConfig = {
           },
         ],
       },
-      // Service Worker specific headers - TEMPORARILY DISABLED
-      /*
+      // Service Worker specific headers - MINIMAL FOR PWA COMPLIANCE
       {
         source: '/sw.js',
         headers: [
@@ -89,7 +88,6 @@ const nextConfig: NextConfig = {
           },
         ],
       },
-      */
       // Manifest specific headers
       {
         source: '/manifest.json',

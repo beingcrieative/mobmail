@@ -200,7 +200,7 @@ class ServiceWorkerManager {
           resolve(event.data);
         };
 
-        navigator.serviceWorker.controller.postMessage(
+        navigator.serviceWorker.controller?.postMessage(
           { type: 'CACHE_STATS' },
           [messageChannel.port2]
         );
@@ -228,7 +228,7 @@ class ServiceWorkerManager {
           resolve(event.data.success || false);
         };
 
-        navigator.serviceWorker.controller.postMessage(
+        navigator.serviceWorker.controller?.postMessage(
           { type: 'CLEAR_CACHE' },
           [messageChannel.port2]
         );

@@ -164,7 +164,7 @@ export async function POST(request: NextRequest) {
     const businessContext = context?.business ? `
 BUSINESS INFORMATIE:
 - Naam: ${context.business.name}
-- Diensten: ${context.business.services.join(', ')}
+- Diensten: ${context.business.services?.join(', ') || 'Niet gespecificeerd'}
 - Prijzen: ${JSON.stringify(context.business.pricing)}
 - Beschikbaarheid: ${context.business.availability}
 - Contact: ${context.business.contact}

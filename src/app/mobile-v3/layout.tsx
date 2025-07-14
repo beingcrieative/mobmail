@@ -2,7 +2,9 @@
 
 import { ReactNode, useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-// import { useServiceWorker } from '@/lib/pwa/serviceWorker'; // Temporarily disabled
+import { engagementTracker } from '@/lib/pwa/engagementTracker';
+import { InstallPrompt } from '@/components/mobile/InstallPrompt';
+// Minimal service worker voor PWA compliance
 
 interface MobileLayoutProps {
   children: ReactNode;
@@ -10,7 +12,11 @@ interface MobileLayoutProps {
 
 export default function MobileLayout({ children }: MobileLayoutProps) {
   const [showUpdateNotification, setShowUpdateNotification] = useState(false);
-  // const { status, updateAvailable, activateUpdate, isSupported } = useServiceWorker(); // Temporarily disabled
+  const [isEligibleForInstall, setIsEligibleForInstall] = useState(false);
+  const [engagementSummary, setEngagementSummary] = useState('');
+  const [showInstallPrompt, setShowInstallPrompt] = useState(false);
+  
+  // Simplified service worker status (no complex PWA features during transition)
   const status = { active: false };
   const updateAvailable = false;
   const activateUpdate = async () => {};
@@ -31,6 +37,54 @@ export default function MobileLayout({ children }: MobileLayoutProps) {
   const dismissUpdate = () => {
     setShowUpdateNotification(false);
   };
+
+  useEffect(() => {
+    // Register minimal service worker for PWA compliance
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js', {
+        scope: '/',
+        updateViaCache: 'none'
+      })
+      .then(registration => {
+        console.log('✅ Minimal SW registered for PWA compliance:', registration.scope);
+      })
+      .catch(error => {
+        console.warn('⚠️ SW registration failed (non-critical):', error);
+      });
+    }
+
+    // Setup engagement tracking for PWA install prompt eligibility
+    const handleEligibilityChange = () => {
+      const isEligible = engagementTracker.isEligibleForInstallPrompt();
+      const summary = engagementTracker.getSummary();
+      
+      setIsEligibleForInstall(isEligible);
+      setEngagementSummary(summary);
+      
+      if (isEligible) {
+        console.log('🎉 User became eligible for PWA install prompt');
+        // Show install prompt when user becomes eligible
+        setShowInstallPrompt(true);
+      }
+    };
+
+    const handleMetricsUpdate = () => {
+      setEngagementSummary(engagementTracker.getSummary());
+    };
+
+    // Listen for engagement events
+    engagementTracker.on('became-eligible', handleEligibilityChange);
+    engagementTracker.on('metrics-updated', handleMetricsUpdate);
+
+    // Initial check
+    handleEligibilityChange();
+
+    // Cleanup
+    return () => {
+      engagementTracker.off('became-eligible', handleEligibilityChange);
+      engagementTracker.off('metrics-updated', handleMetricsUpdate);
+    };
+  }, []);
 
   useEffect(() => {
     // Apply mobile-specific meta tags and configuration
@@ -241,6 +295,20 @@ export default function MobileLayout({ children }: MobileLayoutProps) {
       >
         {children}
       </motion.div>
+      
+      {/* PWA Install Prompt */}
+      {showInstallPrompt && (
+        <InstallPrompt
+          variant="banner"
+          autoShow={true}
+          onInstallAttempt={(success) => {
+            if (success) {
+              setShowInstallPrompt(false);
+            }
+          }}
+          onDismiss={() => setShowInstallPrompt(false)}
+        />
+      )}
     </div>
   );
 }
