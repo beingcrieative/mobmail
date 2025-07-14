@@ -1,0 +1,192 @@
+import type { Metadata } from 'next';
+import { Inter } from 'next/font/google';
+import './globals.css';
+import Navbar from '@/components/layout/Navbar';
+import Footer from '@/components/layout/Footer';
+import CookieBanner from '@/components/layout/CookieBanner';
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+
+const inter = Inter({ subsets: ['latin'] });
+
+export const metadata: Metadata = {
+  title: 'VoicemailAI - AI Voicemail Manager voor ZZP\'ers',
+  description: 'Secure AI-powered voicemail transcription en management speciaal voor Nederlandse ZZP\'ers. Offline-first PWA met end-to-end encryption.',
+  keywords: 'voicemail, ai, zzp, zelfstandige, transcriptie, spraakherkenning, pwa, offline, secure, nederland',
+  authors: [{ name: 'VoicemailAI Team' }],
+  creator: 'VoicemailAI',
+  publisher: 'VoicemailAI',
+  formatDetection: {
+    email: false,
+    address: false,
+    telephone: false,
+  },
+  metadataBase: (() => {
+    try {
+      const domain = process.env.NEXT_PUBLIC_DOMAIN;
+      if (domain) {
+        // Handle localhost domains without protocol
+        if (domain.includes('localhost') || domain.includes('127.0.0.1')) {
+          return new URL(`http://${domain.replace(/^https?:\/\//, '')}`);
+        }
+        // Handle domains with protocol
+        if (domain.startsWith('http')) {
+          return new URL(domain);
+        }
+        // Handle domains without protocol (assume HTTPS for production)
+        return new URL(`https://${domain}`);
+      }
+      return new URL('https://voicemailai.vercel.app');
+    } catch (error) {
+      console.warn('MetadataBase URL error:', error);
+      return new URL('https://voicemailai.vercel.app');
+    }
+  })(),
+  // Temporarily disabled alternates to debug URL issues
+  // alternates: {
+  //   canonical: '/',
+  //   languages: {
+  //     'nl-NL': '/nl',
+  //     'en-US': '/en',
+  //   },
+  // },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
+  },
+  openGraph: {
+    type: 'website',
+    locale: 'nl_NL',
+    title: 'VoicemailAI - AI Voicemail Manager',
+    description: 'Secure AI-powered voicemail transcription voor ZZP\'ers. Offline-first PWA met end-to-end encryption.',
+    siteName: 'VoicemailAI',
+    images: [
+      {
+        url: '/og-image.png',
+        width: 1200,
+        height: 630,
+        alt: 'VoicemailAI - AI Voicemail Manager',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'VoicemailAI - AI Voicemail Manager',
+    description: 'Secure AI-powered voicemail transcription voor ZZP\'ers',
+    images: ['/twitter-image.png'],
+    creator: '@voicemailai',
+  },
+  manifest: '/manifest.json',
+  icons: {
+    icon: [
+      { url: '/icons/icon-16x16.png', sizes: '16x16', type: 'image/png' },
+      { url: '/icons/icon-32x32.png', sizes: '32x32', type: 'image/png' },
+      { url: '/icons/icon-192x192.png', sizes: '192x192', type: 'image/png' },
+      { url: '/icons/icon-512x512.png', sizes: '512x512', type: 'image/png' },
+    ],
+    apple: [
+      { url: '/icons/apple-touch-icon.png', sizes: '180x180', type: 'image/png' },
+      { url: '/icons/apple-touch-icon-152x152.png', sizes: '152x152', type: 'image/png' },
+      { url: '/icons/apple-touch-icon-144x144.png', sizes: '144x144', type: 'image/png' },
+      { url: '/icons/apple-touch-icon-120x120.png', sizes: '120x120', type: 'image/png' },
+      { url: '/icons/apple-touch-icon-114x114.png', sizes: '114x114', type: 'image/png' },
+      { url: '/icons/apple-touch-icon-76x76.png', sizes: '76x76', type: 'image/png' },
+      { url: '/icons/apple-touch-icon-72x72.png', sizes: '72x72', type: 'image/png' },
+      { url: '/icons/apple-touch-icon-60x60.png', sizes: '60x60', type: 'image/png' },
+      { url: '/icons/apple-touch-icon-57x57.png', sizes: '57x57', type: 'image/png' },
+    ],
+    other: [
+      {
+        rel: 'mask-icon',
+        url: '/icons/safari-pinned-tab.svg',
+        color: '#1f2937',
+      },
+    ],
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'VoicemailAI',
+    startupImage: [
+      {
+        url: '/icons/apple-splash-2048-2732.png',
+        media: '(device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)',
+      },
+      {
+        url: '/icons/apple-splash-1668-2388.png',
+        media: '(device-width: 834px) and (device-height: 1194px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)',
+      },
+      {
+        url: '/icons/apple-splash-1536-2048.png',
+        media: '(device-width: 768px) and (device-height: 1024px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)',
+      },
+      {
+        url: '/icons/apple-splash-1284-2778.png',
+        media: '(device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)',
+      },
+      {
+        url: '/icons/apple-splash-1170-2532.png',
+        media: '(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)',
+      },
+      {
+        url: '/icons/apple-splash-1125-2436.png',
+        media: '(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)',
+      },
+      {
+        url: '/icons/apple-splash-828-1792.png',
+        media: '(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)',
+      },
+      {
+        url: '/icons/apple-splash-750-1334.png',
+        media: '(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)',
+      },
+      {
+        url: '/icons/apple-splash-640-1136.png',
+        media: '(device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)',
+      },
+    ],
+  },
+  other: {
+    'mobile-web-app-capable': 'yes',
+    'mobile-web-app-status-bar-style': 'black-translucent',
+    'mobile-web-app-title': 'VoicemailAI',
+    'msapplication-TileColor': '#1f2937',
+    'msapplication-config': '/browserconfig.xml',
+    'msapplication-starturl': '/mobile-v3',
+    'msapplication-navbutton-color': '#1f2937',
+    'application-name': 'VoicemailAI',
+    'theme-color': '#1f2937',
+    'color-scheme': 'light dark',
+    'supported-color-schemes': 'light dark',
+    'viewport': 'width=device-width, initial-scale=1.0, maximum-scale=5.0, minimum-scale=1.0, user-scalable=yes, viewport-fit=cover',
+  },
+};
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <html lang="nl">
+      <body className={inter.className}>
+        <div className="flex flex-col min-h-screen">
+          <Navbar />
+          <main className="flex-grow">
+            {children}
+          </main>
+          <Footer />
+          <ToastContainer position="bottom-right" />
+          <CookieBanner />
+        </div>
+      </body>
+    </html>
+  );
+}

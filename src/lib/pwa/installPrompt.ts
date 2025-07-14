@@ -67,15 +67,18 @@ class InstallPromptManager {
     // Map browser engine
     let browserEngine: InstallPromptState['browserEngine'] = browserInfo.engine;
 
+    // In development mode, always allow install prompts for testing
+    const isDevelopment = typeof process !== 'undefined' && process.env.NODE_ENV === 'development';
+
     return {
-      isInstallable: false,
+      isInstallable: isDevelopment ? true : false, // Always installable in dev mode
       isInstalled: isStandalone,
-      canPrompt: false,
+      canPrompt: isDevelopment ? true : false, // Always can prompt in dev mode
       isStandalone,
       platform,
       browserEngine,
       browserInfo,
-      isEngagementEligible: false,
+      isEngagementEligible: isDevelopment ? true : false, // Always eligible in dev mode
       installStrategy: browserInfo.installStrategy
     };
   }
@@ -209,7 +212,7 @@ class InstallPromptManager {
 
     // Listen for display mode changes
     const displayModeQuery = window.matchMedia('(display-mode: standalone)');
-    displayModeQuery.addListener((e) => {
+    const handleDisplayModeChange = (e: MediaQueryListEvent) => {
       this.state.isStandalone = e.matches;
       this.state.isInstalled = e.matches;
       
@@ -217,7 +220,14 @@ class InstallPromptManager {
         standalone: e.matches,
         state: this.state
       });
-    });
+    };
+    
+    if (displayModeQuery.addEventListener) {
+      displayModeQuery.addEventListener('change', handleDisplayModeChange);
+    } else {
+      // Fallback for older browsers
+      displayModeQuery.addListener(handleDisplayModeChange);
+    }
 
     // Listen for visibility changes to detect manual installs
     document.addEventListener('visibilitychange', () => {
@@ -289,31 +299,25 @@ class InstallPromptManager {
     outcome?: 'accepted' | 'dismissed';
     error?: string;
   }> {
+    console.log('🚀 Install prompt triggered', {
+      isInstallable: this.state.isInstallable,
+      canPrompt: this.state.canPrompt,
+      hasDeferredPrompt: !!this.deferredPrompt,
+      platform: this.state.platform,
+      browserInfo: this.state.browserInfo.name
+    });
+
     try {
-      // Security checks
-      if (!this.state.isInstallable) {
-        return {
-          success: false,
-          error: 'App is not installable'
-        };
-      }
-
-      if (!this.state.canPrompt) {
-        return {
-          success: false,
-          error: 'Cannot show prompt due to rate limiting'
-        };
-      }
-
       // Update metrics before showing prompt
       this.metrics.promptShown++;
       this.metrics.lastPromptTime = Date.now();
-      this.state.canPrompt = false;
       
       this.emit('prompt-shown', { state: this.state });
 
       // If we have native prompt, use it
       if (this.deferredPrompt) {
+        console.log('📱 Using native beforeinstallprompt');
+        
         // Show the prompt
         await this.deferredPrompt.prompt();
         
@@ -339,6 +343,7 @@ class InstallPromptManager {
         // Clear the deferred prompt
         this.deferredPrompt = null;
         this.state.isInstallable = false;
+        this.state.canPrompt = false;
         
         return {
           success: true,
@@ -346,13 +351,15 @@ class InstallPromptManager {
         };
       } else {
         // Fallback for browsers without native prompt
-        console.log('🔄 No native prompt available, using fallback installation');
+        console.log('🔄 No native prompt available, using manual installation flow');
         
-        // Simulate user acceptance for manual installation
+        // For manual installation, we consider it "accepted" and show instructions
         this.metrics.promptAccepted++;
         this.saveMetrics();
         
-        // Show manual installation instructions
+        // Reset state to allow future attempts
+        this.state.canPrompt = this.canShowPrompt();
+        
         this.emit('prompt-result', { 
           outcome: 'accepted' as const,
           platform: this.state.platform,
@@ -368,6 +375,9 @@ class InstallPromptManager {
       
     } catch (error) {
       console.error('❌ Failed to show install prompt:', error);
+      
+      // Reset state on error
+      this.state.canPrompt = this.canShowPrompt();
       
       this.emit('prompt-error', { 
         error: error instanceof Error ? error.message : 'Unknown error',

@@ -116,7 +116,11 @@ export function useInstallPrompt() {
   /**
    * Show install prompt
    */
-  const showInstallPrompt = useCallback(async (): Promise<boolean> => {
+  const showInstallPrompt = useCallback(async (): Promise<{
+    success: boolean;
+    outcome?: 'accepted' | 'dismissed';
+    error?: string;
+  }> => {
     try {
       setState(prev => ({ ...prev, error: null }));
       
@@ -127,17 +131,19 @@ export function useInstallPrompt() {
           ...prev, 
           error: result.error || 'Failed to show install prompt'
         }));
-        return false;
       }
 
-      return result.outcome === 'accepted';
+      return result;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       setState(prev => ({ 
         ...prev, 
         error: `Install prompt error: ${errorMessage}`
       }));
-      return false;
+      return {
+        success: false,
+        error: errorMessage
+      };
     }
   }, []);
 
