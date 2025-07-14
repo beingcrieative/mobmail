@@ -164,7 +164,7 @@ class InstallPromptManager {
     // Force trigger availability check after DOM load
     const checkForPWASupport = () => {
       // If we haven't received beforeinstallprompt but we're on a PWA-capable browser
-      if (!this.deferredPrompt && this.state.browserInfo.supports.webAppManifest) {
+      if (!this.deferredPrompt && this.state.browserInfo.supports.serviceWorker) {
         console.log('🔄 Forcing PWA prompt availability check...');
         
         // Simulate prompt availability for testing
