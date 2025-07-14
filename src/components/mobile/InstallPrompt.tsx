@@ -58,7 +58,7 @@ export function InstallPrompt({
   const instructions = getInstallInstructions();
 
   const handleInstallClick = async () => {
-    if (isInstallReady) {
+    if (isInstallReady || shouldShowInstallHint()) {
       setIsInstalling(true);
       clearError();
       
@@ -68,11 +68,15 @@ export function InstallPrompt({
         
         if (success) {
           setIsVisible(false);
+        } else {
+          // Show instructions as fallback
+          setShowInstructions(true);
+          setIsInstalling(false);
         }
       } catch (error) {
         console.error('Install prompt failed:', error);
         onInstallAttempt?.(false);
-      } finally {
+        setShowInstructions(true);
         setIsInstalling(false);
       }
     } else {
@@ -211,20 +215,31 @@ export function InstallPrompt({
 
           {/* Install button or instructions */}
           {!showInstructions ? (
-            <button
-              onClick={handleInstallClick}
-              disabled={isInstalling}
-              className="w-full bg-blue-600 text-white rounded-lg py-3 font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isInstalling ? (
-                <div className="flex items-center justify-center">
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
-                  Installeren...
-                </div>
-              ) : (
-                getInstallButtonText()
+            <div className="space-y-3">
+              <button
+                onClick={handleInstallClick}
+                disabled={isInstalling}
+                className="w-full bg-blue-600 text-white rounded-lg py-3 font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isInstalling ? (
+                  <div className="flex items-center justify-center">
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                    Installeren...
+                  </div>
+                ) : (
+                  getInstallButtonText()
+                )}
+              </button>
+              
+              {!isInstallReady && (
+                <button
+                  onClick={() => setShowInstructions(true)}
+                  className="w-full bg-gray-100 text-gray-700 rounded-lg py-3 font-medium hover:bg-gray-200 transition-colors"
+                >
+                  Installatie-instructies
+                </button>
               )}
-            </button>
+            </div>
           ) : (
             <div className="space-y-4">
               <h4 className="font-medium text-gray-900">

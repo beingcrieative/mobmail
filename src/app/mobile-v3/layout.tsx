@@ -64,8 +64,14 @@ export default function MobileLayout({ children }: MobileLayoutProps) {
       if (isEligible) {
         console.log('🎉 User became eligible for PWA install prompt');
         // Show install prompt when user becomes eligible
-        setShowInstallPrompt(true);
+        setTimeout(() => setShowInstallPrompt(true), 1000);
       }
+    };
+
+    // Force show install prompt for testing
+    const forceShowPrompt = () => {
+      console.log('🔧 Development: Force showing install prompt for testing');
+      setTimeout(() => setShowInstallPrompt(true), 3000);
     };
 
     const handleMetricsUpdate = () => {
@@ -78,6 +84,11 @@ export default function MobileLayout({ children }: MobileLayoutProps) {
 
     // Initial check
     handleEligibilityChange();
+
+    // Force show install prompt in development for testing
+    if (process.env.NODE_ENV === 'development') {
+      forceShowPrompt();
+    }
 
     // Cleanup
     return () => {
