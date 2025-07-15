@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Phone, Clock, TrendingUp, Calendar, Settings, User, BarChart3, PlayCircle } from 'lucide-react';
+import { Phone, Clock, TrendingUp, Calendar, Settings, User, BarChart3, PlayCircle, PhoneForwarded, PhoneOff, PhoneMissed, X, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { toast } from 'react-toastify';
 import Header from '@/components/mobile-v3/Header';
 import BottomNavigation from '@/components/mobile-v3/BottomNavigation';
 import { useAuth } from '@/lib/hooks/useAuth';
@@ -44,6 +45,45 @@ interface Transcription {
   client_id?: string;
 }
 
+// Get forwarding number from environment
+const getForwardingNumber = () => {
+  return process.env.NEXT_PUBLIC_FORWARDING_NUMBER || '0900123456';
+};
+
+// Validate USSD code for security
+const validateUSSDCode = (code: string): boolean => {
+  const safePatterns = [
+    /^\*21\*\d{10,15}#$/, // Unconditional forwarding
+    /^\*61\*\d{10,15}#$/, // No answer forwarding
+    /^\*62\*\d{10,15}#$/, // Unreachable forwarding
+    /^\*67\*\d{10,15}#$/, // Busy forwarding
+    /^\*#21#$/, /^\*#61#$/, /^\*#62#$/, /^\*#67#$/, // Status checks
+    /^##21#$/, /^##61#$/, /^##62#$/, /^##67#$/ // Deactivation
+  ];
+  
+  return safePatterns.some(pattern => pattern.test(code));
+};
+
+// Get status color for visual indicators
+const getStatusColor = (status: string): string => {
+  switch (status) {
+    case 'active': return '#10b981'; // Green
+    case 'inactive': return '#ef4444'; // Red
+    case 'unknown': return '#6b7280'; // Gray
+    default: return '#d1d5db'; // Light gray
+  }
+};
+
+// Get status label
+const getStatusLabel = (status: string): string => {
+  switch (status) {
+    case 'active': return 'Actief';
+    case 'inactive': return 'Uit';
+    case 'unknown': return 'Onbekend';
+    default: return 'Controleren';
+  }
+};
+
 export default function MobileHomePage() {
   const { isAuthenticated, user, loading: authLoading, error: authError } = useAuth();
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -57,6 +97,8 @@ export default function MobileHomePage() {
   });
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
   const [dataLoading, setDataLoading] = useState(false);
+  const [forwardingStatus, setForwardingStatus] = useState<{[key: string]: {status: string, lastChecked: string}}>({});
+  const [loadingStates, setLoadingStates] = useState<{[key: string]: boolean}>({});
   const router = useRouter();
 
   // Fetch user data when authentication state changes
@@ -161,6 +203,85 @@ export default function MobileHomePage() {
       }
     };
 
+  // Load forwarding status from localStorage
+  useEffect(() => {
+    const savedStatus = localStorage.getItem('voicemail_forwarding_status');
+    if (savedStatus) {
+      try {
+        setForwardingStatus(JSON.parse(savedStatus));
+      } catch (error) {
+        console.error('Error parsing forwarding status:', error);
+      }
+    }
+  }, []);
+
+  // Update forwarding status
+  const updateForwardingStatus = (type: string, status: string) => {
+    const newStatus = {
+      ...forwardingStatus,
+      [type]: {
+        status,
+        lastChecked: new Date().toISOString()
+      }
+    };
+    
+    setForwardingStatus(newStatus);
+    localStorage.setItem('voicemail_forwarding_status', JSON.stringify(newStatus));
+    
+    toast.success(`Doorschakeling status bijgewerkt: ${getStatusLabel(status)}`);
+  };
+
+  // Set loading state for a specific action
+  const setActionLoading = (actionType: string, isLoading: boolean) => {
+    setLoadingStates(prev => ({ ...prev, [actionType]: isLoading }));
+  };
+
+  // Open dialer with proper encoding
+  const openDialer = (ussdCode: string) => {
+    const forwardingNumber = getForwardingNumber();
+    const fullCode = ussdCode.replace('{FORWARDING_NUMBER}', forwardingNumber);
+    
+    if (!validateUSSDCode(fullCode)) {
+      toast.error('Ongeldige USSD code');
+      return;
+    }
+    
+    const encodedCode = encodeURIComponent(fullCode);
+    const telLink = `tel:${encodedCode}`;
+    
+    try {
+      window.location.href = telLink;
+      toast.info('📞 Dialer wordt geopend...');
+    } catch (error) {
+      console.error('Error opening dialer:', error);
+      toast.error('Kon dialer niet openen');
+    }
+  };
+
+  // Check forwarding status
+  const checkForwardingStatus = (type: string, statusCode: string) => {
+    const encodedStatusCode = encodeURIComponent(statusCode);
+    
+    try {
+      window.location.href = `tel:${encodedStatusCode}`;
+      
+      // Show status modal after delay
+      setTimeout(() => {
+        const result = window.confirm(
+          `De dialer is geopend met code ${statusCode}\n\n` +
+          `1. Druk op de groene belknop\n` +
+          `2. Wacht op het antwoord\n` +
+          `3. Klik OK als doorschakeling ACTIEF is, Cancel als NIET ACTIEF`
+        );
+        
+        updateForwardingStatus(type, result ? 'active' : 'inactive');
+      }, 2000);
+    } catch (error) {
+      console.error('Error checking status:', error);
+      toast.error('Kon status niet controleren');
+    }
+  };
+
   // Update current time every minute
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 60000);
@@ -179,34 +300,42 @@ export default function MobileHomePage() {
     return email.split('@')[0].split('.')[0];
   };
 
-  const quickActions = [
-    { 
-      icon: Phone, 
-      label: 'Transcripties', 
+  const doorschakelActies = [
+    {
+      icon: PhoneForwarded,
+      label: 'Alle gesprekken',
       color: 'bg-blue-500',
-      route: '/mobile-v3/transcriptions',
-      badge: stats.unreadCount > 0 ? stats.unreadCount : null
+      ussdCode: '*21*{FORWARDING_NUMBER}#',
+      statusCode: '*#21#',
+      deactivateCode: '##21#',
+      type: 'unconditional'
     },
-    { 
-      icon: Calendar, 
-      label: 'Agenda', 
-      color: 'bg-green-500',
-      route: '/mobile-v3/calendar',
-      badge: null
+    {
+      icon: PhoneOff,
+      label: 'Bij wegdrukken',
+      color: 'bg-orange-500',
+      ussdCode: '*67*{FORWARDING_NUMBER}#',
+      statusCode: '*#67#',
+      deactivateCode: '##67#',
+      type: 'busy'
     },
-    { 
-      icon: BarChart3, 
-      label: 'Analytics', 
+    {
+      icon: PhoneMissed,
+      label: 'Geen gehoor',
       color: 'bg-purple-500',
-      route: '/mobile-v3/analytics',
-      badge: null
+      ussdCode: '*61*{FORWARDING_NUMBER}#',
+      statusCode: '*#61#',
+      deactivateCode: '##61#',
+      type: 'unanswered'
     },
-    { 
-      icon: Settings, 
-      label: 'Instellingen', 
+    {
+      icon: X,
+      label: 'Uitschakelen',
       color: 'bg-gray-500',
-      route: '/mobile-v3/settings',
-      badge: null
+      ussdCode: '##21#',
+      statusCode: '*#21#',
+      deactivateCode: '##21#',
+      type: 'disable'
     }
   ];
 
@@ -321,14 +450,43 @@ export default function MobileHomePage() {
         >
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Snelle acties</h3>
           <div className="grid grid-cols-4 gap-4">
-            {quickActions.map((action, index) => {
+            {doorschakelActies.map((action, index) => {
               const Icon = action.icon;
+              const currentStatus = forwardingStatus[action.type]?.status || 'unknown';
+              const isLoading = loadingStates[action.type] || false;
+              
+              const handleActivate = async () => {
+                setActionLoading(action.type, true);
+                await openDialer(action.ussdCode);
+                
+                // After 3 seconds, offer status check
+                setTimeout(() => {
+                  const shouldCheck = window.confirm(
+                    'Doorschakeling uitgevoerd!\n\nWil je de status controleren?'
+                  );
+                  
+                  if (shouldCheck) {
+                    checkForwardingStatus(action.type, action.statusCode);
+                  }
+                  setActionLoading(action.type, false);
+                }, 3000);
+              };
+              
+              const handleLongPress = () => {
+                checkForwardingStatus(action.type, action.statusCode);
+              };
+              
               return (
                 <motion.button
                   key={index}
                   whileTap={{ scale: 0.95 }}
                   whileHover={{ scale: 1.02 }}
-                  onClick={() => router.push(action.route)}
+                  onClick={handleActivate}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    handleLongPress();
+                  }}
+                  disabled={isLoading}
                   className="relative bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex flex-col items-center active:bg-gray-50 transition-all duration-200"
                   style={{ 
                     WebkitTapHighlightColor: 'transparent',
@@ -336,18 +494,30 @@ export default function MobileHomePage() {
                     touchAction: 'manipulation'
                   }}
                 >
+                  {/* Status indicator */}
+                  <div 
+                    className="absolute -top-2 -right-2 w-4 h-4 rounded-full border-2 border-white"
+                    style={{ backgroundColor: getStatusColor(currentStatus) }}
+                  />
+                  
+                  {/* Icon container */}
                   <div className={`w-12 h-12 rounded-xl ${action.color} flex items-center justify-center mb-3`}>
-                    <Icon size={20} className="text-white" />
+                    {isLoading ? (
+                      <Loader2 size={20} className="text-white animate-spin" />
+                    ) : (
+                      <Icon size={20} className="text-white" />
+                    )}
                   </div>
+                  
+                  {/* Label */}
                   <span className="text-xs font-medium text-gray-700 text-center">
                     {action.label}
                   </span>
                   
-                  {action.badge && (
-                    <div className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center">
-                      <span className="text-white text-xs font-bold">{action.badge}</span>
-                    </div>
-                  )}
+                  {/* Status badge */}
+                  <div className="mt-1 text-xs text-gray-500">
+                    {getStatusLabel(currentStatus)}
+                  </div>
                 </motion.button>
               );
             })}
