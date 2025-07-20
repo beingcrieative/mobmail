@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Phone, Clock, TrendingUp, Calendar, Settings, User, BarChart3, PlayCircle, PhoneForwarded, PhoneOff, PhoneMissed, X, Loader2, Bell, BellRing, Trash2, Check } from 'lucide-react';
+import { Phone, Clock, TrendingUp, Calendar, Settings, User, BarChart3, PlayCircle, PhoneForwarded, PhoneOff, PhoneMissed, X, Loader2, Bell, BellRing, Trash2, Check, CheckCircle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'react-toastify';
 import Header from '@/components/mobile-v3/Header';
@@ -112,6 +112,7 @@ export default function MobileHomePage() {
   const [showNotifications, setShowNotifications] = useState(false);
   const [hasNewNotifications, setHasNewNotifications] = useState(false);
   const [forwardingStatus, setForwardingStatus] = useState<{[key: string]: {status: string, lastChecked: string}}>({});
+  const [activeForwardingType, setActiveForwardingType] = useState<string | null>(null);
   const [loadingStates, setLoadingStates] = useState<{[key: string]: boolean}>({});
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [pendingStatusCheck, setPendingStatusCheck] = useState<{type: string, statusCode: string} | null>(null);
@@ -222,6 +223,8 @@ export default function MobileHomePage() {
   // Load forwarding status from localStorage with expiration check
   useEffect(() => {
     const savedStatus = localStorage.getItem('voicemail_forwarding_status');
+    const savedActiveType = localStorage.getItem('voicemail_active_forwarding_type');
+    
     if (savedStatus) {
       try {
         const parsedStatus = JSON.parse(savedStatus);
@@ -246,10 +249,15 @@ export default function MobileHomePage() {
         console.error('Error parsing forwarding status:', error);
       }
     }
+    
+    // Load active forwarding type
+    if (savedActiveType) {
+      setActiveForwardingType(savedActiveType);
+    }
   }, []);
 
-  // Update forwarding status
-  const updateForwardingStatus = (type: string, status: string) => {
+  // Update forwarding status with mutual exclusivity
+  const updateForwardingStatus = (type: string, status: string, isActivation: boolean = false) => {
     const newStatus = {
       ...forwardingStatus,
       [type]: {
@@ -261,7 +269,70 @@ export default function MobileHomePage() {
     setForwardingStatus(newStatus);
     localStorage.setItem('voicemail_forwarding_status', JSON.stringify(newStatus));
     
-    toast.success(`Doorschakeling status bijgewerkt: ${getStatusLabel(status)}`);
+    // Handle mutual exclusivity for forwarding types
+    if (isActivation && status === 'active' && type !== 'disable') {
+      // Set this as the active forwarding type
+      setActiveForwardingType(type);
+      localStorage.setItem('voicemail_active_forwarding_type', type);
+      
+      // Deactivate other forwarding types
+      const otherTypes = ['unconditional', 'busy', 'unanswered'].filter(t => t !== type);
+      otherTypes.forEach(otherType => {
+        if (forwardingStatus[otherType]?.status === 'active') {
+          const deactivatedStatus = {
+            ...newStatus,
+            [otherType]: {
+              status: 'inactive',
+              lastChecked: new Date().toISOString()
+            }
+          };
+          setForwardingStatus(deactivatedStatus);
+          localStorage.setItem('voicemail_forwarding_status', JSON.stringify(deactivatedStatus));
+        }
+      });
+      
+      toast.success(`${getDoorschakelLabel(type)} geactiveerd - andere types gedeactiveerd`);
+    } else if (type === 'disable' && status === 'active') {
+      // Disable all forwarding
+      setActiveForwardingType(null);
+      localStorage.removeItem('voicemail_active_forwarding_type');
+      toast.success('Alle doorschakelingen uitgeschakeld');
+    } else {
+      toast.success(`Doorschakeling status bijgewerkt: ${getStatusLabel(status)}`);
+    }
+  };
+  
+  // Helper function to get doorschakeling label
+  const getDoorschakelLabel = (type: string): string => {
+    switch (type) {
+      case 'unconditional': return 'Altijd doorschakelen';
+      case 'busy': return 'Bezet doorschakelen';
+      case 'unanswered': return 'Niet opgenomen doorschakelen';
+      case 'disable': return 'Uitschakelen';
+      default: return 'Doorschakeling';
+    }
+  };
+
+  // Get enhanced button styling based on active state
+  const getButtonStyling = (actionType: string, currentStatus: string) => {
+    const isActive = activeForwardingType === actionType && currentStatus === 'active';
+    const isDisabled = actionType === 'disable';
+    
+    if (isActive && !isDisabled) {
+      return {
+        buttonClass: 'relative blabla-card-compact hover-lift flex flex-col items-center border-2 border-green-400 bg-green-50',
+        iconColorClass: 'bg-green-500',
+        textColor: 'var(--color-text-primary)'
+      };
+    }
+    
+    return {
+      buttonClass: 'relative blabla-card-compact hover-lift flex flex-col items-center',
+      iconColorClass: actionType === 'unconditional' ? 'bg-blue-500' :
+                      actionType === 'busy' ? 'bg-orange-500' :
+                      actionType === 'unanswered' ? 'bg-purple-500' : 'bg-gray-500',
+      textColor: 'var(--color-text-primary)'
+    };
   };
 
   // Set loading state for a specific action
@@ -349,7 +420,7 @@ export default function MobileHomePage() {
   // Handle status confirmation from modal
   const handleStatusConfirmation = (isActive: boolean) => {
     if (pendingStatusCheck) {
-      updateForwardingStatus(pendingStatusCheck.type, isActive ? 'active' : 'inactive');
+      updateForwardingStatus(pendingStatusCheck.type, isActive ? 'active' : 'inactive', isActive);
       setShowStatusModal(false);
       setPendingStatusCheck(null);
     }
@@ -886,17 +957,19 @@ export default function MobileHomePage() {
             Snelle acties
           </h3>
           
-          {/* Bulk Status Check Button */}
+          {/* Enhanced Bulk Status Check Button */}
           <motion.button
             whileTap={{ scale: 0.95 }}
             onClick={checkAllForwardingStatus}
-            className="mb-4 flex items-center justify-center space-x-2 px-4 py-3 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors"
+            className="mb-4 flex items-center justify-center space-x-2 px-4 py-3 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-xl transition-colors"
+            aria-label="Controleer de status van alle doorschakelingen"
+            title="Controleert systematisch de status van alle doorschakeling types"
           >
-            <BarChart3 size={16} className="text-gray-600" />
-            <span className="text-sm font-medium text-gray-700">Alle statussen controleren</span>
+            <BarChart3 size={16} className="text-blue-600" />
+            <span className="text-sm font-medium text-blue-700">Alle statussen controleren</span>
           </motion.button>
           
-          <div className="grid grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 gap-3">
             {doorschakelActies.map((action, index) => {
               const Icon = action.icon;
               const currentStatus = forwardingStatus[action.type]?.status || 'unknown';
@@ -904,16 +977,26 @@ export default function MobileHomePage() {
               
               const handleActivate = async () => {
                 setActionLoading(action.type, true);
+                
+                // Provide immediate feedback
+                toast.info(`${getDoorschakelLabel(action.type)} wordt geactiveerd...`);
+                
                 await openDialer(action.ussdCode);
                 
-                // After 3 seconds, offer status check
+                // After 3 seconds, offer status check with better messaging
                 setTimeout(() => {
+                  const actionLabel = getDoorschakelLabel(action.type);
                   const shouldCheck = window.confirm(
-                    'Doorschakeling uitgevoerd!\n\nWil je de status controleren?'
+                    `✅ ${actionLabel} commando verzonden!\n\n` +
+                    `Wil je de status controleren om te bevestigen dat de doorschakeling actief is?\n\n` +
+                    `💡 Tip: Lang indrukken controleert alleen de status zonder te activeren.`
                   );
                   
                   if (shouldCheck) {
                     checkForwardingStatus(action.type, action.statusCode);
+                  } else {
+                    // Assume activation was successful for UX
+                    updateForwardingStatus(action.type, 'active', true);
                   }
                   setActionLoading(action.type, false);
                 }, 3000);
@@ -922,6 +1005,9 @@ export default function MobileHomePage() {
               const handleLongPress = () => {
                 checkForwardingStatus(action.type, action.statusCode);
               };
+              
+              const buttonStyling = getButtonStyling(action.type, currentStatus);
+              const isActive = activeForwardingType === action.type && currentStatus === 'active';
               
               return (
                 <motion.button
@@ -934,14 +1020,18 @@ export default function MobileHomePage() {
                     handleLongPress();
                   }}
                   disabled={isLoading}
-                  className="relative blabla-card-compact hover-lift flex flex-col items-center"
+                  className={buttonStyling.buttonClass}
+                  aria-label={`${getDoorschakelLabel(action.type)}${isActive ? ' - Momenteel actief' : ''}`}
+                  aria-pressed={isActive}
+                  title={`Klik om ${getDoorschakelLabel(action.type).toLowerCase()} te activeren. Lang indrukken om status te controleren.`}
                   style={{ 
                     WebkitTapHighlightColor: 'transparent',
                     userSelect: 'none',
                     touchAction: 'manipulation',
-                    padding: 'var(--spacing-sm)',
-                    height: '88px',
-                    minWidth: '70px'
+                    padding: '12px',
+                    height: '100px',
+                    minWidth: '140px',
+                    overflow: 'hidden'
                   }}
                 >
                   {/* Status indicator */}
@@ -951,11 +1041,16 @@ export default function MobileHomePage() {
                   />
                   
                   {/* Icon container */}
-                  <div className={`w-10 h-10 rounded-lg ${action.color} flex items-center justify-center mb-2`}>
+                  <div className={`w-10 h-10 rounded-lg ${buttonStyling.iconColorClass} flex items-center justify-center mb-1`}>
                     {isLoading ? (
                       <Loader2 size={18} className="text-white animate-spin" />
                     ) : (
-                      <Icon size={18} className="text-white" />
+                      <>
+                        <Icon size={18} className="text-white" />
+                        {isActive && action.type !== 'disable' && (
+                          <CheckCircle size={12} className="text-white absolute top-0 right-0 bg-green-600 rounded-full" />
+                        )}
+                      </>
                     )}
                   </div>
                   
@@ -963,29 +1058,39 @@ export default function MobileHomePage() {
                   <span 
                     className="text-center"
                     style={{
-                      fontSize: 'var(--font-size-tiny)',
+                      fontSize: '11px',
                       fontWeight: 'var(--font-weight-medium)',
                       color: 'var(--color-text-primary)',
                       fontFamily: 'var(--font-family-primary)',
-                      lineHeight: '1.2'
+                      lineHeight: '1.2',
+                      whiteSpace: 'normal',
+                      wordBreak: 'break-word',
+                      textAlign: 'center',
+                      maxWidth: '100%'
                     }}
                   >
                     {action.label}
                   </span>
                   
-                  {/* Status badge with age */}
+                  {/* Enhanced status badge with better visual feedback */}
                   <div 
-                    className="mt-1 text-center"
+                    className="mt-0.5 text-center"
                     style={{
-                      fontSize: '10px',
-                      color: 'var(--color-text-muted)',
+                      fontSize: '9px',
+                      color: isActive ? '#059669' : 'var(--color-text-muted)',
                       fontFamily: 'var(--font-family-primary)',
-                      lineHeight: '1'
+                      lineHeight: '1.1',
+                      fontWeight: isActive ? 'var(--font-weight-medium)' : 'normal'
                     }}
                   >
-                    <div>{getStatusLabel(currentStatus)}</div>
-                    {forwardingStatus[action.type]?.lastChecked && (
-                      <div style={{ fontSize: '9px', marginTop: '2px' }}>
+                    <div>
+                      {isActive ? '✓ Actief' : getStatusLabel(currentStatus)}
+                      {isActive && action.type !== 'disable' && (
+                        <span style={{ color: '#059669', marginLeft: '2px' }}>●</span>
+                      )}
+                    </div>
+                    {forwardingStatus[action.type]?.lastChecked && !isActive && (
+                      <div style={{ fontSize: '8px', marginTop: '1px' }}>
                         {getStatusAge(forwardingStatus[action.type].lastChecked)}
                       </div>
                     )}
