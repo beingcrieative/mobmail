@@ -2,7 +2,7 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { motion } from 'framer-motion';
-import { User, Phone, Mail, Calendar, Bell, Shield, LogOut, Edit, ChevronRight, Settings } from 'lucide-react';
+import { User, Phone, Mail, Calendar, Bell, Shield, LogOut, Edit, ChevronRight, Settings, X } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Header from '@/components/mobile-v3/Header';
 import BottomNavigation from '@/components/mobile-v3/BottomNavigation';
@@ -29,9 +29,16 @@ function ProfilePageContent() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [showWizard, setShowWizard] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [userId, setUserId] = useState<string>('');
   const router = useRouter();
   const searchParams = useSearchParams();
+
+  // Edit form state
+  const [editForm, setEditForm] = useState({
+    name: '',
+    phone: ''
+  });
 
   useEffect(() => {
     const initializeProfile = async () => {
@@ -142,6 +149,64 @@ function ProfilePageContent() {
     setShowWizard(true);
   };
 
+  const handleEditProfile = () => {
+    if (profile) {
+      setEditForm({
+        name: profile.name,
+        phone: profile.phone
+      });
+      setShowEditModal(true);
+    }
+  };
+
+  const handleUpdateProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    try {
+      const response = await fetch('/api/user/profile', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: editForm.name,
+          companyName: '', // Keep existing or empty
+          mobileNumber: editForm.phone,
+          information: '', // Keep existing or empty
+          calUsername: '', // Keep existing or empty
+          calApiKey: '', // Keep existing or empty
+          calEventTypeId: '' // Keep existing or empty
+        })
+      });
+
+      if (response.ok) {
+        // Update the profile state with new data
+        setProfile(prev => prev ? {
+          ...prev,
+          name: editForm.name,
+          phone: editForm.phone
+        } : null);
+        
+        setShowEditModal(false);
+        console.log('Profile updated successfully');
+      } else {
+        console.error('Failed to update profile');
+        alert('Er is een fout opgetreden bij het bijwerken van je profiel.');
+      }
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      alert('Er is een fout opgetreden bij het bijwerken van je profiel.');
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setShowEditModal(false);
+    setEditForm({
+      name: '',
+      phone: ''
+    });
+  };
+
   const settingsItems = [
     { 
       icon: Settings, 
@@ -191,10 +256,13 @@ function ProfilePageContent() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen clean-background flex items-center justify-center">
         <div className="text-center">
-          <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Profiel laden...</p>
+          <div 
+            className="w-8 h-8 border-2 border-t-transparent rounded-full animate-spin mx-auto mb-4"
+            style={{ borderColor: 'var(--color-primary)', borderTopColor: 'transparent' }}
+          ></div>
+          <p style={{ color: 'var(--color-text-secondary)' }}>Profiel laden...</p>
         </div>
       </div>
     );
@@ -202,16 +270,16 @@ function ProfilePageContent() {
 
   if (!profile) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen clean-background flex items-center justify-center">
         <div className="text-center">
-          <p className="text-gray-600">Kan profiel niet laden</p>
+          <p style={{ color: 'var(--color-text-secondary)' }}>Kan profiel niet laden</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
+    <div className="min-h-screen clean-background pb-20">
       <Header title="Profiel" showBack />
 
       <div className="px-4 py-6">
@@ -219,11 +287,17 @@ function ProfilePageContent() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-white rounded-2xl p-6 mb-6 shadow-sm border border-gray-100"
+          className="blabla-card mb-6"
         >
           <div className="flex items-center mb-4">
-            <div className="w-16 h-16 bg-blue-500 rounded-full flex items-center justify-center mr-4">
-              <User size={28} className="text-white" />
+            <div 
+              className="w-16 h-16 rounded-full flex items-center justify-center mr-4"
+              style={{ 
+                backgroundColor: 'var(--color-primary)',
+                color: 'var(--color-text-white)'
+              }}
+            >
+              <User size={28} />
             </div>
             <div className="flex-1">
               <h2 className="text-xl font-bold text-gray-900">{profile.name}</h2>
@@ -232,7 +306,9 @@ function ProfilePageContent() {
             </div>
             <motion.button
               whileTap={{ scale: 0.95 }}
+              onClick={handleEditProfile}
               className="p-2 rounded-full bg-gray-100 hover:bg-gray-200"
+              title="Profiel bewerken"
             >
               <Edit size={18} className="text-gray-600" />
             </motion.button>
@@ -381,6 +457,81 @@ function ProfilePageContent() {
           onClose={handleWizardClose}
         />
       )}
+
+      {/* Edit Profile Modal */}
+      {showEditModal && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+        >
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.9, opacity: 0 }}
+            className="blabla-card w-full max-w-md"
+          >
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-lg font-semibold text-gray-900">Profiel bewerken</h3>
+              <motion.button
+                whileTap={{ scale: 0.95 }}
+                onClick={handleCancelEdit}
+                className="p-2 rounded-full bg-gray-100 hover:bg-gray-200"
+              >
+                <X size={18} className="text-gray-600" />
+              </motion.button>
+            </div>
+
+            <form onSubmit={handleUpdateProfile} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Naam
+                </label>
+                <input
+                  type="text"
+                  value={editForm.name}
+                  onChange={(e) => setEditForm(prev => ({ ...prev, name: e.target.value }))}
+                  className="w-full px-3 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  required
+                />
+              </div>
+
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Telefoonnummer
+                </label>
+                <input
+                  type="tel"
+                  value={editForm.phone}
+                  onChange={(e) => setEditForm(prev => ({ ...prev, phone: e.target.value }))}
+                  className="w-full px-3 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  required
+                />
+              </div>
+
+              <div className="flex justify-end space-x-3 pt-4">
+                <motion.button
+                  type="button"
+                  whileTap={{ scale: 0.95 }}
+                  onClick={handleCancelEdit}
+                  className="px-4 py-3 text-sm font-medium text-gray-700 hover:text-gray-500"
+                >
+                  Annuleren
+                </motion.button>
+                <motion.button
+                  type="submit"
+                  whileTap={{ scale: 0.95 }}
+                  className="blabla-button-primary px-6 py-3 text-sm font-medium"
+                >
+                  Opslaan
+                </motion.button>
+              </div>
+            </form>
+          </motion.div>
+        </motion.div>
+      )}
     </div>
   );
 }
@@ -388,10 +539,13 @@ function ProfilePageContent() {
 export default function ProfilePage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen clean-background flex items-center justify-center">
         <div className="text-center">
-          <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Laden...</p>
+          <div 
+            className="w-8 h-8 border-2 border-t-transparent rounded-full animate-spin mx-auto mb-4"
+            style={{ borderColor: 'var(--color-primary)', borderTopColor: 'transparent' }}
+          ></div>
+          <p style={{ color: 'var(--color-text-secondary)' }}>Laden...</p>
         </div>
       </div>
     }>

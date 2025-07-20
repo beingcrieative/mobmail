@@ -43,9 +43,12 @@ export default function TranscriptionsPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [dateFilter, setDateFilter] = useState<'all' | 'today' | 'week' | 'month'>('all');
+  const [dateFilter, setDateFilter] = useState<'all' | 'today' | 'week' | 'month' | 'last3months' | 'custom'>('all');
   const [sortBy, setSortBy] = useState<'date' | 'duration'>('date');
   const [showFilters, setShowFilters] = useState(false);
+  const [durationFilter, setDurationFilter] = useState<'all' | 'short' | 'medium' | 'long'>('all');
+  const [customStartDate, setCustomStartDate] = useState('');
+  const [customEndDate, setCustomEndDate] = useState('');
   const router = useRouter();
 
   useEffect(() => {
@@ -54,7 +57,7 @@ export default function TranscriptionsPage() {
 
   useEffect(() => {
     filterAndSortTranscriptions();
-  }, [transcriptions, searchTerm, dateFilter, sortBy]);
+  }, [transcriptions, searchTerm, dateFilter, sortBy, durationFilter, customStartDate, customEndDate]);
 
   // Get call type based on duration
   const getCallType = (transcription: Transcription): 'short' | 'medium' | 'long' => {
@@ -153,6 +156,26 @@ export default function TranscriptionsPage() {
         const monthTimestamp = Math.floor(monthStart.getTime() / 1000);
         filtered = filtered.filter(t => t.startTime >= monthTimestamp);
         break;
+      case 'last3months':
+        const threeMonthsStart = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+        const threeMonthsTimestamp = Math.floor(threeMonthsStart.getTime() / 1000);
+        filtered = filtered.filter(t => t.startTime >= threeMonthsTimestamp);
+        break;
+      case 'custom':
+        if (customStartDate && customEndDate) {
+          const startTimestamp = Math.floor(new Date(customStartDate).getTime() / 1000);
+          const endTimestamp = Math.floor(new Date(customEndDate + 'T23:59:59').getTime() / 1000);
+          filtered = filtered.filter(t => t.startTime >= startTimestamp && t.startTime <= endTimestamp);
+        }
+        break;
+    }
+
+    // Apply duration filter
+    if (durationFilter !== 'all') {
+      filtered = filtered.filter(t => {
+        const callType = getCallType(t);
+        return callType === durationFilter;
+      });
     }
 
     // Apply sorting - simplified
@@ -221,19 +244,20 @@ export default function TranscriptionsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen clean-background flex items-center justify-center">
         <div className="text-center">
-          <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Transcripties laden...</p>
+          <div 
+            className="w-8 h-8 border-2 border-t-transparent rounded-full animate-spin mx-auto mb-4"
+            style={{ borderColor: 'var(--color-primary)', borderTopColor: 'transparent' }}
+          ></div>
+          <p style={{ color: 'var(--color-text-secondary)' }}>Transcripties laden...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen pb-20" style={{
-      background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)'
-    }}>
+    <div className="min-h-screen pb-20 clean-background">
       <Header title="Transcripties" showBack />
 
       <div className="px-4 py-4">
@@ -245,17 +269,7 @@ export default function TranscriptionsPage() {
         >
           <motion.div 
             whileHover={{ y: -2 }}
-            className="rounded-xl p-5 border border-slate-200 transition-all duration-200 ease-in-out hover:shadow-lg"
-            style={{
-              background: 'rgba(255, 255, 255, 0.95)',
-              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.12)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.08)';
-            }}
+            className="blabla-card hover-lift"
           >
             <div className="flex items-center justify-between mb-3" style={{
               background: 'rgba(99, 102, 241, 0.05)',
@@ -274,23 +288,19 @@ export default function TranscriptionsPage() {
                 <RefreshCw size={14} className={`text-gray-600 ${refreshing ? 'animate-spin' : ''}`} />
               </motion.button>
             </div>
-            <p className="text-2xl font-bold text-gray-900">{transcriptions.length}</p>
-            <p className="text-sm text-gray-600">Totaal gesprekken</p>
+            <p className="text-2xl font-bold text-gray-900">
+              {transcriptions.filter(t => {
+                const today = new Date();
+                const todayStart = Math.floor(new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime() / 1000);
+                return t.startTime >= todayStart;
+              }).length}
+            </p>
+            <p className="text-sm text-gray-600">Vandaag ontvangen</p>
           </motion.div>
           
           <motion.div 
             whileHover={{ y: -2 }}
-            className="rounded-xl p-5 border border-slate-200 transition-all duration-200 ease-in-out hover:shadow-lg"
-            style={{
-              background: 'rgba(255, 255, 255, 0.95)',
-              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.12)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.08)';
-            }}
+            className="blabla-card hover-lift"
           >
             <div className="flex items-center justify-between mb-3" style={{
               background: 'rgba(99, 102, 241, 0.05)',
@@ -300,13 +310,6 @@ export default function TranscriptionsPage() {
               borderRadius: '12px 12px 0 0'
             }}>
               <Clock size={20} className="text-green-500" />
-              <span className="text-xs text-blue-600 font-medium bg-blue-100 px-2 py-1 rounded-full">
-                {transcriptions.filter(t => {
-                  const today = new Date();
-                  const todayStart = Math.floor(new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime() / 1000);
-                  return t.startTime >= todayStart;
-                }).length}
-              </span>
             </div>
             <p className="text-2xl font-bold text-gray-900">
               {transcriptions.length > 0 
@@ -314,7 +317,7 @@ export default function TranscriptionsPage() {
                 : '0m'
               }
             </p>
-            <p className="text-sm text-gray-600">Gem. gespreksduur</p>
+            <p className="text-sm text-gray-600">Gem. transcriptieduur</p>
           </motion.div>
         </motion.div>
 
@@ -325,15 +328,27 @@ export default function TranscriptionsPage() {
           transition={{ delay: 0.1 }}
           className="mb-6"
         >
-          <div className="flex space-x-2 rounded-xl p-1 border border-slate-200 mb-4 transition-all duration-200"
-            style={{
-              background: 'rgba(255, 255, 255, 0.95)',
-              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)'
-            }}>
+          {/* Advanced Filter Toggle */}
+          <div className="flex justify-between items-center mb-4">
+            <h4 className="font-medium text-gray-900">Filters</h4>
+            <motion.button
+              whileTap={{ scale: 0.95 }}
+              onClick={() => setShowFilters(!showFilters)}
+              className="flex items-center space-x-2 px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-medium text-gray-700 transition-colors"
+            >
+              <Filter size={14} />
+              <span>{showFilters ? 'Minder filters' : 'Meer filters'}</span>
+              {showFilters ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+            </motion.button>
+          </div>
+
+          {/* Basic Date Filters */}
+          <div className="blabla-card-compact flex space-x-2 mb-4">
             {[
               { key: 'all', label: 'Alle' },
               { key: 'today', label: 'Vandaag' },
               { key: 'week', label: 'Deze week' },
+              { key: 'month', label: 'Deze maand' },
             ].map((filter) => (
               <motion.button
                 key={filter.key}
@@ -342,35 +357,135 @@ export default function TranscriptionsPage() {
                 onClick={() => setDateFilter(filter.key as any)}
                 className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all duration-200 ${
                   dateFilter === filter.key
-                    ? 'bg-blue-500 text-white shadow-sm'
-                    : 'text-gray-600 hover:bg-gray-100'
+                    ? 'text-white shadow-sm'
+                    : 'hover:bg-gray-100'
                 }`}
+                style={{
+                  backgroundColor: dateFilter === filter.key ? 'var(--color-primary)' : 'transparent',
+                  color: dateFilter === filter.key ? 'var(--color-text-white)' : 'var(--color-text-secondary)'
+                }}
               >
                 {filter.label}
               </motion.button>
             ))}
           </div>
           
+          {/* Advanced Filters */}
+          <AnimatePresence>
+            {showFilters && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="space-y-4 mb-4"
+              >
+                {/* Extended Date Filters */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Uitgebreide datumfilters</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      { key: 'last3months', label: 'Laatste 3 maanden' },
+                      { key: 'custom', label: 'Aangepast bereik' },
+                    ].map((filter) => (
+                      <motion.button
+                        key={filter.key}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={() => setDateFilter(filter.key as any)}
+                        className={`py-2 px-3 rounded-lg text-sm font-medium transition-all duration-200 ${
+                          dateFilter === filter.key
+                            ? 'text-white shadow-sm'
+                            : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                        }`}
+                        style={{
+                          backgroundColor: dateFilter === filter.key ? 'var(--color-primary)' : undefined
+                        }}
+                      >
+                        {filter.label}
+                      </motion.button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Custom Date Range */}
+                {dateFilter === 'custom' && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="grid grid-cols-2 gap-3"
+                  >
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Van datum</label>
+                      <input
+                        type="date"
+                        value={customStartDate}
+                        onChange={(e) => setCustomStartDate(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Tot datum</label>
+                      <input
+                        type="date"
+                        value={customEndDate}
+                        onChange={(e) => setCustomEndDate(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                  </motion.div>
+                )}
+
+                {/* Duration Filter */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Gespreksduur</label>
+                  <div className="grid grid-cols-4 gap-2">
+                    {[
+                      { key: 'all', label: 'Alle' },
+                      { key: 'short', label: 'Kort (<1min)' },
+                      { key: 'medium', label: 'Gemiddeld (1-3min)' },
+                      { key: 'long', label: 'Lang (>3min)' },
+                    ].map((filter) => (
+                      <motion.button
+                        key={filter.key}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={() => setDurationFilter(filter.key as any)}
+                        className={`py-2 px-2 rounded-lg text-xs font-medium transition-all duration-200 ${
+                          durationFilter === filter.key
+                            ? 'text-white shadow-sm'
+                            : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                        }`}
+                        style={{
+                          backgroundColor: durationFilter === filter.key ? 'var(--color-primary)' : undefined
+                        }}
+                      >
+                        {filter.label}
+                      </motion.button>
+                    ))}
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+          
           <div className="relative">
             <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
             <input
               type="text"
-              placeholder="Zoek in gesprekken..."
+              placeholder="Zoek in transcripties..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+              className="blabla-input w-full pl-10 pr-4 py-3"
               style={{
-                background: 'rgba(255, 255, 255, 0.95)',
-                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)'
+                borderColor: 'var(--card-border)',
+                fontSize: 'var(--font-size-body)'
               }}
             />
           </div>
         </motion.div>
 
         <div className="mb-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">Recente gesprekken</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">Recente transcripties</h3>
           <p className="text-sm text-gray-600">
-            {filteredTranscriptions.length} van {transcriptions.length} gesprekken
+            {filteredTranscriptions.length} van {transcriptions.length} transcripties
           </p>
         </div>
 
@@ -423,6 +538,229 @@ interface TranscriptionCardProps {
   index: number;
 }
 
+// Helper function to normalize transcription data
+const normalizeTranscriptionData = (transcription: Transcription) => ({
+  customerName: transcription.customerName || transcription.customer_name || 'Onbekende beller',
+  companyName: transcription.companyName || transcription.company_name || '',
+  phoneNumber: transcription.externalNumber || transcription.caller_phone || '',
+  summary: transcription.transcriptSummary || '',
+  callType: transcription.callDuration < 60 ? 'Kort' : transcription.callDuration < 180 ? 'Normaal' : 'Lang'
+});
+
+// Transcription Card Header Component
+interface TranscriptionCardHeaderProps {
+  customerName: string;
+  startTime: number;
+  callType: string;
+  getTimeAgo: (timestamp: number) => string;
+}
+
+function TranscriptionCardHeader({ customerName, startTime, callType, getTimeAgo }: TranscriptionCardHeaderProps) {
+  return (
+    <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center space-x-3">
+        <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-blue-50 text-blue-600">
+          <Phone size={16} />
+        </div>
+        <div>
+          <h3 className="font-semibold text-gray-900">{customerName}</h3>
+          <p className="text-sm text-gray-600">{getTimeAgo(startTime)}</p>
+        </div>
+      </div>
+      <span className="text-xs font-medium px-2 py-1 rounded-full bg-blue-50 text-blue-600">
+        {callType}
+      </span>
+    </div>
+  );
+}
+
+// Call Details Component
+interface TranscriptionDetailsProps {
+  phoneNumber: string;
+  duration: number;
+  companyName?: string;
+  formatDuration: (seconds: number) => string;
+}
+
+function TranscriptionDetails({ phoneNumber, duration, companyName, formatDuration }: TranscriptionDetailsProps) {
+  return (
+    <div className="grid grid-cols-2 gap-4 p-3 rounded-lg mb-4 bg-gray-50">
+      <div>
+        <span className="text-xs text-gray-500">Telefoonnummer</span>
+        <p className="font-medium text-gray-900 font-mono text-sm">{phoneNumber}</p>
+      </div>
+      <div>
+        <span className="text-xs text-gray-500">Gespreksduur</span>
+        <p className="font-medium text-gray-900">{formatDuration(duration)}</p>
+      </div>
+      {companyName && (
+        <div className="col-span-2">
+          <span className="text-xs text-gray-500">Bedrijf</span>
+          <p className="font-medium text-gray-900">{companyName}</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Summary Component
+interface TranscriptionSummaryProps {
+  summary: string;
+}
+
+function TranscriptionSummary({ summary }: TranscriptionSummaryProps) {
+  if (!summary) return null;
+
+  return (
+    <div className="mb-4">
+      <h4 className="text-sm font-medium text-gray-900 mb-2">Samenvatting</h4>
+      <p className="text-sm text-gray-600 leading-relaxed">
+        {summary.length > 120 ? summary.substring(0, 120) + '...' : summary}
+      </p>
+    </div>
+  );
+}
+
+// Actions Component
+interface TranscriptionActionsProps {
+  phoneNumber: string;
+  isExpanded: boolean;
+  onToggleExpand: () => void;
+}
+
+function TranscriptionActions({ phoneNumber, isExpanded, onToggleExpand }: TranscriptionActionsProps) {
+  return (
+    <div className="flex space-x-2">
+      <motion.button
+        whileTap={{ scale: 0.95 }}
+        whileHover={{ y: -1 }}
+        className="blabla-button-primary flex-1 flex items-center justify-center space-x-2"
+        onClick={() => window.open(`tel:${phoneNumber}`, '_self')}
+      >
+        <Phone size={14} />
+        <span>Bellen</span>
+      </motion.button>
+      <motion.button
+        whileTap={{ scale: 0.95 }}
+        whileHover={{ y: -1 }}
+        onClick={onToggleExpand}
+        className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-all duration-200"
+      >
+        <ChevronDown size={16} className={`text-gray-600 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
+      </motion.button>
+    </div>
+  );
+}
+
+// Transcript Message Component
+interface TranscriptMessageProps {
+  message: {
+    role: string;
+    message: string;
+    timeInCallSecs?: number;
+  };
+  formatDuration: (seconds: number) => string;
+}
+
+function TranscriptMessage({ message, formatDuration }: TranscriptMessageProps) {
+  const isAgent = message.role === 'agent';
+  
+  return (
+    <div className={`flex ${isAgent ? 'justify-start' : 'justify-end'} mb-3`}>
+      <div className={`max-w-[80%] p-3 rounded-xl ${
+        isAgent 
+          ? 'bg-blue-50 border border-blue-200 rounded-bl-sm' 
+          : 'bg-green-50 border border-green-200 rounded-br-sm'
+      }`}>
+        <div className={`flex items-center mb-1 ${isAgent ? 'flex-row' : 'flex-row-reverse'}`}>
+          <div className={`w-2 h-2 rounded-full ${
+            isAgent ? 'bg-blue-500 mr-2' : 'bg-green-500 ml-2'
+          }`}></div>
+          <span className="text-xs font-medium text-gray-600">
+            {isAgent ? 'Agent' : 'Beller'}
+          </span>
+          {message.timeInCallSecs !== undefined && (
+            <span className={`text-xs text-gray-500 ${
+              isAgent ? 'ml-auto' : 'mr-auto'
+            }`}>
+              {formatDuration(message.timeInCallSecs)}
+            </span>
+          )}
+        </div>
+        <p className={`text-sm text-gray-800 leading-relaxed ${
+          isAgent ? 'text-left' : 'text-right'
+        }`}>
+          {message.message}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// Expanded Content Component
+interface TranscriptionExpandedProps {
+  transcription: Transcription;
+  formatTimestamp: (timestamp: number) => string;
+  formatDuration: (seconds: number) => string;
+}
+
+function TranscriptionExpanded({ transcription, formatTimestamp, formatDuration }: TranscriptionExpandedProps) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, height: 0 }}
+      animate={{ opacity: 1, height: 'auto' }}
+      exit={{ opacity: 0, height: 0 }}
+      className="border-t border-gray-100 mt-4 pt-4"
+    >
+      <div className="space-y-4">
+        {/* Extended Details */}
+        <div className="grid grid-cols-2 gap-4 p-3 rounded-lg bg-gray-50">
+          <div>
+            <span className="text-xs text-gray-500">Datum & Tijd</span>
+            <p className="font-medium text-gray-900">{formatTimestamp(transcription.startTime)}</p>
+          </div>
+          <div>
+            <span className="text-xs text-gray-500">Richting</span>
+            <p className="font-medium text-gray-900">
+              {transcription.callDirection === 'inbound' ? 'Inkomend' : 'Uitgaand'}
+            </p>
+          </div>
+        </div>
+
+        {/* Full Transcript */}
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <h4 className="font-semibold text-gray-900 flex items-center">
+              <FileText size={16} className="mr-2 text-gray-400" />
+              Volledige transcriptie
+            </h4>
+          </div>
+          <div className="max-h-64 overflow-y-auto rounded-lg p-4 border border-slate-200 bg-gray-50">
+            {Array.isArray(transcription.transcript) && transcription.transcript.length > 0 ? (
+              <div className="space-y-3">
+                {transcription.transcript.map((message, idx) => (
+                  message.message && (
+                    <TranscriptMessage 
+                      key={idx} 
+                      message={message} 
+                      formatDuration={formatDuration} 
+                    />
+                  )
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-gray-500 text-center py-8">
+                Geen gedetailleerde transcriptie beschikbaar
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+// Main Transcription Card Component (now much cleaner)
 function TranscriptionCard({
   transcription,
   isExpanded,
@@ -432,11 +770,7 @@ function TranscriptionCard({
   getTimeAgo,
   index
 }: TranscriptionCardProps) {
-  const customerName = transcription.customerName || transcription.customer_name || 'Onbekende beller';
-  const companyName = transcription.companyName || transcription.company_name || '';
-  const phoneNumber = transcription.externalNumber || transcription.caller_phone || '';
-  const summary = transcription.transcriptSummary || '';  
-  const callType = transcription.callDuration < 60 ? 'Kort' : transcription.callDuration < 180 ? 'Normaal' : 'Lang';
+  const normalizedData = normalizeTranscriptionData(transcription);
 
   return (
     <motion.div
@@ -444,168 +778,37 @@ function TranscriptionCard({
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.05 }}
       whileHover={{ y: -2 }}
-      className="rounded-xl p-5 mb-4 border border-slate-200 transition-all duration-200 ease-in-out hover:shadow-lg"
-      style={{
-        background: 'rgba(255, 255, 255, 0.95)',
-        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)'
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.12)';
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.08)';
-      }}
+      className="blabla-card hover-lift mb-4"
     >
-      {/* Header */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-            <Phone size={16} className="text-blue-600" />
-          </div>
-          <div>
-            <h3 className="font-semibold text-gray-900">{customerName}</h3>
-            <p className="text-sm text-gray-600">{getTimeAgo(transcription.startTime)}</p>
-          </div>
-        </div>
-        <div className="text-right">
-          <span className="text-xs text-blue-600 font-medium bg-blue-100 px-2 py-1 rounded-full">
-            {callType}
-          </span>
-        </div>
-      </div>
+      <TranscriptionCardHeader
+        customerName={normalizedData.customerName}
+        startTime={transcription.startTime}
+        callType={normalizedData.callType}
+        getTimeAgo={getTimeAgo}
+      />
+      
+      <TranscriptionDetails
+        phoneNumber={normalizedData.phoneNumber}
+        duration={transcription.callDuration}
+        companyName={normalizedData.companyName}
+        formatDuration={formatDuration}
+      />
+      
+      <TranscriptionSummary summary={normalizedData.summary} />
+      
+      <TranscriptionActions
+        phoneNumber={normalizedData.phoneNumber}
+        isExpanded={isExpanded}
+        onToggleExpand={onToggleExpand}
+      />
 
-      {/* Call Details */}
-      <div className="grid grid-cols-2 gap-4 p-3 rounded-lg mb-4" style={{
-        background: 'rgba(248, 250, 252, 0.8)'
-      }}>
-        <div>
-          <span className="text-xs text-gray-500">Telefoonnummer</span>
-          <p className="font-medium text-gray-900 font-mono text-sm">{phoneNumber}</p>
-        </div>
-        <div>
-          <span className="text-xs text-gray-500">Gespreksduur</span>
-          <p className="font-medium text-gray-900">{formatDuration(transcription.callDuration)}</p>
-        </div>
-        {companyName && (
-          <div className="col-span-2">
-            <span className="text-xs text-gray-500">Bedrijf</span>
-            <p className="font-medium text-gray-900">{companyName}</p>
-          </div>
-        )}
-      </div>
-
-      {/* Summary */}
-      {summary && (
-        <div className="mb-4">
-          <h4 className="text-sm font-medium text-gray-900 mb-2">Samenvatting</h4>
-          <p className="text-sm text-gray-600 leading-relaxed">
-            {summary.length > 120 ? summary.substring(0, 120) + '...' : summary}
-          </p>
-        </div>
-      )}
-
-      {/* Actions */}
-      <div className="flex space-x-2">
-        <motion.button
-          whileTap={{ scale: 0.95 }}
-          whileHover={{ y: -1 }}
-          className="flex-1 py-2 px-4 bg-blue-500 text-white rounded-lg text-sm font-medium flex items-center justify-center space-x-2 transition-all duration-200 hover:bg-blue-600 hover:shadow-sm"
-          onClick={() => window.open(`tel:${phoneNumber}`, '_self')}
-        >
-          <Phone size={14} />
-          <span>Bellen</span>
-        </motion.button>
-        <motion.button
-          whileTap={{ scale: 0.95 }}
-          whileHover={{ y: -1 }}
-          onClick={onToggleExpand}
-          className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-all duration-200"
-        >
-          <ChevronDown size={16} className={`text-gray-600 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
-        </motion.button>
-      </div>
-
-      {/* Expanded Content */}
       <AnimatePresence>
         {isExpanded && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            className="border-t border-gray-100 mt-4 pt-4"
-          >
-            <div className="space-y-4">
-              {/* Extended Details */}
-              <div className="grid grid-cols-2 gap-4 p-3 rounded-lg" style={{
-                background: 'rgba(248, 250, 252, 0.8)'
-              }}>
-                <div>
-                  <span className="text-xs text-gray-500">Datum & Tijd</span>
-                  <p className="font-medium text-gray-900">{formatTimestamp(transcription.startTime)}</p>
-                </div>
-                <div>
-                  <span className="text-xs text-gray-500">Richting</span>
-                  <p className="font-medium text-gray-900">
-                    {transcription.callDirection === 'inbound' ? 'Inkomend' : 'Uitgaand'}
-                  </p>
-                </div>
-              </div>
-
-              {/* Full Transcript */}
-              <div>
-                <div className="flex items-center justify-between mb-3">
-                  <h4 className="font-semibold text-gray-900 flex items-center">
-                    <FileText size={16} className="mr-2 text-gray-400" />
-                    Volledige transcriptie
-                  </h4>
-                </div>
-                <div className="max-h-64 overflow-y-auto rounded-lg p-4 border border-slate-200" style={{
-                  background: 'rgba(248, 250, 252, 0.6)'
-                }}>
-                  {Array.isArray(transcription.transcript) && transcription.transcript.length > 0 ? (
-                    <div className="space-y-3">
-                      {transcription.transcript.map((message, idx) => (
-                        message.message && (
-                          <div key={idx} className={`flex ${message.role === 'agent' ? 'justify-start' : 'justify-end'} mb-3`}>
-                            <div className={`max-w-[80%] p-3 rounded-xl ${
-                              message.role === 'agent' 
-                                ? 'bg-blue-50 border border-blue-200 rounded-bl-sm' 
-                                : 'bg-green-50 border border-green-200 rounded-br-sm'
-                            }`}>
-                              <div className={`flex items-center mb-1 ${message.role === 'agent' ? 'flex-row' : 'flex-row-reverse'}`}>
-                                <div className={`w-2 h-2 rounded-full ${
-                                  message.role === 'agent' ? 'bg-blue-500 mr-2' : 'bg-green-500 ml-2'
-                                }`}></div>
-                                <span className="text-xs font-medium text-gray-600">
-                                  {message.role === 'agent' ? 'Agent' : 'Beller'}
-                                </span>
-                                {message.timeInCallSecs !== undefined && (
-                                  <span className={`text-xs text-gray-500 ${
-                                    message.role === 'agent' ? 'ml-auto' : 'mr-auto'
-                                  }`}>
-                                    {formatDuration(message.timeInCallSecs)}
-                                  </span>
-                                )}
-                              </div>
-                              <p className={`text-sm text-gray-800 leading-relaxed ${
-                                message.role === 'agent' ? 'text-left' : 'text-right'
-                              }`}>
-                                {message.message}
-                              </p>
-                            </div>
-                          </div>
-                        )
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-sm text-gray-500 text-center py-8">
-                      Geen gedetailleerde transcriptie beschikbaar
-                    </p>
-                  )}
-                </div>
-              </div>
-            </div>
-          </motion.div>
+          <TranscriptionExpanded
+            transcription={transcription}
+            formatTimestamp={formatTimestamp}
+            formatDuration={formatDuration}
+          />
         )}
       </AnimatePresence>
     </motion.div>

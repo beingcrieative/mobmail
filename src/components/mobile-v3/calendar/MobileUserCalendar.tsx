@@ -457,9 +457,9 @@ export default function MobileUserCalendar({ userId }: MobileUserCalendarProps) 
   };
 
   return (
-    <div className="bg-white shadow rounded-2xl mx-4 mt-6 overflow-hidden">
+    <div className="blabla-card mx-4 mt-6 overflow-hidden">
       {/* Header */}
-      <div className="flex justify-between items-center p-4 bg-gradient-to-r from-blue-500 to-purple-600">
+      <div className="accent-hero flex justify-between items-center p-4">
         <div className="flex items-center space-x-3">
           <CalendarIcon className="h-6 w-6 text-white" />
           <h2 className="text-xl font-bold text-white">Jouw Kalender</h2>
@@ -655,7 +655,7 @@ export default function MobileUserCalendar({ userId }: MobileUserCalendarProps) 
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-2xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto"
+              className="blabla-card w-full max-w-md max-h-[90vh] overflow-y-auto"
             >
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-medium text-gray-900">
@@ -856,7 +856,7 @@ export default function MobileUserCalendar({ userId }: MobileUserCalendarProps) 
                   <motion.button
                     type="submit"
                     whileTap={{ scale: 0.95 }}
-                    className="px-6 py-3 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-xl"
+                    className="blabla-button-primary px-6 py-3 text-sm font-medium"
                   >
                     Toevoegen
                   </motion.button>
@@ -880,7 +880,7 @@ export default function MobileUserCalendar({ userId }: MobileUserCalendarProps) 
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-2xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto"
+              className="blabla-card w-full max-w-md max-h-[90vh] overflow-y-auto"
             >
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-medium text-gray-900">
@@ -930,7 +930,7 @@ export default function MobileUserCalendar({ userId }: MobileUserCalendarProps) 
                   <motion.button
                     type="submit"
                     whileTap={{ scale: 0.95 }}
-                    className="px-6 py-3 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-xl"
+                    className="blabla-button-primary px-6 py-3 text-sm font-medium"
                   >
                     Bijwerken
                   </motion.button>
