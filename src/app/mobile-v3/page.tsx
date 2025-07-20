@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Phone, Clock, TrendingUp, Calendar, Settings, User, BarChart3, PlayCircle, PhoneForwarded, PhoneOff, PhoneMissed, X, Loader2 } from 'lucide-react';
+import { Phone, Clock, TrendingUp, Calendar, Settings, User, BarChart3, PlayCircle, PhoneForwarded, PhoneOff, PhoneMissed, X, Loader2, Bell, BellRing, Trash2, Check } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'react-toastify';
 import Header from '@/components/mobile-v3/Header';
@@ -27,6 +27,18 @@ interface RecentActivity {
   subtitle: string;
   time: string;
   priority: 'high' | 'medium' | 'low';
+}
+
+interface Notification {
+  id: string;
+  type: 'new_voicemail' | 'transcription_ready' | 'system_update' | 'forwarding_status' | 'missed_call';
+  title: string;
+  message: string;
+  timestamp: number;
+  read: boolean;
+  priority: 'high' | 'medium' | 'low';
+  actionUrl?: string;
+  metadata?: any;
 }
 
 interface Transcription {
@@ -96,6 +108,9 @@ export default function MobileHomePage() {
   });
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
   const [dataLoading, setDataLoading] = useState(false);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [hasNewNotifications, setHasNewNotifications] = useState(false);
   const [forwardingStatus, setForwardingStatus] = useState<{[key: string]: {status: string, lastChecked: string}}>({});
   const [loadingStates, setLoadingStates] = useState<{[key: string]: boolean}>({});
   const [showStatusModal, setShowStatusModal] = useState(false);
@@ -421,6 +436,190 @@ export default function MobileHomePage() {
 
   // Enhanced name resolution - try to get real name from profile
   const [profileName, setProfileName] = useState<string>('');
+
+  // Real-time notification polling
+  useEffect(() => {
+    let notificationInterval: NodeJS.Timeout;
+
+    const fetchNotifications = async () => {
+      if (!user?.id) return;
+      
+      try {
+        const response = await fetch(`/api/notifications?userId=${user.id}`);
+        if (response.ok) {
+          const data = await response.json();
+          const newNotifications = data.notifications || [];
+          
+          // Check for new unread notifications
+          const hasUnread = newNotifications.some((n: Notification) => !n.read);
+          setHasNewNotifications(hasUnread);
+          
+          setNotifications(newNotifications);
+        }
+      } catch (error) {
+        console.error('Error fetching notifications:', error);
+      }
+    };
+
+    const startNotificationPolling = () => {
+      fetchNotifications(); // Initial fetch
+      notificationInterval = setInterval(fetchNotifications, 30000); // Poll every 30 seconds
+    };
+
+    if (user?.id) {
+      startNotificationPolling();
+    }
+
+    return () => {
+      if (notificationInterval) {
+        clearInterval(notificationInterval);
+      }
+    };
+  }, [user?.id]);
+
+  // Generate mock notifications for demonstration
+  useEffect(() => {
+    if (user?.id && notifications.length === 0) {
+      const mockNotifications: Notification[] = [
+        {
+          id: 'notif-1',
+          type: 'new_voicemail',
+          title: 'Nieuwe voicemail',
+          message: 'Je hebt een nieuwe voicemail ontvangen van +31 6 12345678',
+          timestamp: Date.now() - 300000, // 5 minutes ago
+          read: false,
+          priority: 'high',
+          actionUrl: '/mobile-v3/transcriptions'
+        },
+        {
+          id: 'notif-2',
+          type: 'transcription_ready',
+          title: 'Transcriptie klaar',
+          message: 'De transcriptie van je gesprek met John Doe is beschikbaar',
+          timestamp: Date.now() - 900000, // 15 minutes ago
+          read: false,
+          priority: 'medium',
+          actionUrl: '/mobile-v3/transcriptions'
+        },
+        {
+          id: 'notif-3',
+          type: 'forwarding_status',
+          title: 'Doorschakeling status',
+          message: 'Je doorschakeling naar voicemail is succesvol geactiveerd',
+          timestamp: Date.now() - 3600000, // 1 hour ago
+          read: true,
+          priority: 'low'
+        }
+      ];
+      
+      setNotifications(mockNotifications);
+      setHasNewNotifications(mockNotifications.some(n => !n.read));
+    }
+  }, [user?.id, notifications.length]);
+
+  // Mark notification as read
+  const markNotificationAsRead = async (notificationId: string) => {
+    try {
+      await fetch('/api/notifications/mark-read', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ notificationId })
+      });
+      
+      setNotifications(prev => 
+        prev.map(n => n.id === notificationId ? { ...n, read: true } : n)
+      );
+      
+      // Update has new notifications flag
+      const stillHasUnread = notifications.some(n => n.id !== notificationId && !n.read);
+      setHasNewNotifications(stillHasUnread);
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+    }
+  };
+
+  // Mark all notifications as read
+  const markAllNotificationsAsRead = async () => {
+    try {
+      await fetch('/api/notifications/mark-all-read', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user?.id })
+      });
+      
+      setNotifications(prev => 
+        prev.map(n => ({ ...n, read: true }))
+      );
+      setHasNewNotifications(false);
+    } catch (error) {
+      console.error('Error marking all notifications as read:', error);
+    }
+  };
+
+  // Delete notification
+  const deleteNotification = async (notificationId: string) => {
+    try {
+      await fetch('/api/notifications/delete', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ notificationId })
+      });
+      
+      setNotifications(prev => prev.filter(n => n.id !== notificationId));
+    } catch (error) {
+      console.error('Error deleting notification:', error);
+    }
+  };
+
+  // Get notification icon
+  const getNotificationIcon = (type: string) => {
+    switch (type) {
+      case 'new_voicemail': return Phone;
+      case 'transcription_ready': return PlayCircle;
+      case 'missed_call': return PhoneMissed;
+      case 'forwarding_status': return PhoneForwarded;
+      case 'system_update': return Settings;
+      default: return Bell;
+    }
+  };
+
+  // Get notification color
+  const getNotificationColor = (priority: string, read: boolean) => {
+    if (read) return 'bg-gray-100 text-gray-600';
+    
+    switch (priority) {
+      case 'high': return 'bg-red-100 text-red-600';
+      case 'medium': return 'bg-blue-100 text-blue-600';
+      default: return 'bg-gray-100 text-gray-600';
+    }
+  };
+
+  // Handle notification click
+  const handleNotificationClick = (notification: Notification) => {
+    markNotificationAsRead(notification.id);
+    
+    if (notification.actionUrl) {
+      router.push(notification.actionUrl);
+    }
+    
+    setShowNotifications(false);
+  };
+
+  // Format notification time
+  const formatNotificationTime = (timestamp: number) => {
+    const now = Date.now();
+    const diffInMinutes = Math.floor((now - timestamp) / 60000);
+    const diffInHours = Math.floor(diffInMinutes / 60);
+    const diffInDays = Math.floor(diffInHours / 24);
+    
+    if (diffInMinutes < 60) {
+      return `${diffInMinutes}m`;
+    } else if (diffInHours < 24) {
+      return `${diffInHours}u`;
+    } else {
+      return `${diffInDays}d`;
+    }
+  };
   
   useEffect(() => {
     const fetchProfileName = async () => {
@@ -537,8 +736,9 @@ export default function MobileHomePage() {
     <div className="h-full" style={{ background: 'transparent' }}>
       <Header 
         title="VoicemailAI" 
-        showNotifications={stats.unreadCount > 0}
+        showNotifications={hasNewNotifications}
         showSettings={false}
+        onNotificationClick={() => setShowNotifications(true)}
       />
 
       <div className="px-4 py-6 pb-24">
@@ -848,6 +1048,145 @@ export default function MobileHomePage() {
         </motion.div>
 
       </div>
+
+      {/* Real-time Notifications Panel */}
+      <AnimatePresence>
+        {showNotifications && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-start justify-center z-50 pt-20"
+            onClick={() => setShowNotifications(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: -20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: -20 }}
+              className="blabla-card w-full max-w-md mx-4 max-h-[70vh] overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between mb-4 pb-4 border-b border-gray-100">
+                <div className="flex items-center space-x-2">
+                  <BellRing size={20} className="text-blue-600" />
+                  <h3 className="text-lg font-semibold text-gray-900">Meldingen</h3>
+                  {hasNewNotifications && (
+                    <div className="w-2 h-2 bg-red-500 rounded-full" />
+                  )}
+                </div>
+                <div className="flex items-center space-x-2">
+                  {notifications.some(n => !n.read) && (
+                    <motion.button
+                      whileTap={{ scale: 0.95 }}
+                      onClick={markAllNotificationsAsRead}
+                      className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                    >
+                      Alles gelezen
+                    </motion.button>
+                  )}
+                  <motion.button
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => setShowNotifications(false)}
+                    className="p-1 hover:bg-gray-100 rounded-lg"
+                  >
+                    <X size={16} className="text-gray-600" />
+                  </motion.button>
+                </div>
+              </div>
+
+              {/* Notifications List */}
+              <div className="space-y-3 max-h-96 overflow-y-auto">
+                {notifications.length === 0 ? (
+                  <div className="text-center py-8">
+                    <Bell size={32} className="text-gray-300 mx-auto mb-2" />
+                    <p className="text-gray-500">Geen meldingen</p>
+                  </div>
+                ) : (
+                  notifications.map((notification, index) => {
+                    const Icon = getNotificationIcon(notification.type);
+                    return (
+                      <motion.div
+                        key={notification.id}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: 0.1 * index }}
+                        className={`p-3 rounded-xl border cursor-pointer transition-all hover:shadow-sm ${
+                          notification.read ? 'border-gray-100 bg-gray-50' : 'border-blue-100 bg-blue-50'
+                        }`}
+                        onClick={() => handleNotificationClick(notification)}
+                      >
+                        <div className="flex items-start space-x-3">
+                          {/* Icon */}
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+                            getNotificationColor(notification.priority, notification.read)
+                          }`}>
+                            <Icon size={16} />
+                          </div>
+                          
+                          {/* Content */}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-start justify-between">
+                              <h4 className={`font-medium text-sm ${
+                                notification.read ? 'text-gray-700' : 'text-gray-900'
+                              }`}>
+                                {notification.title}
+                              </h4>
+                              <div className="flex items-center space-x-2 ml-2">
+                                <span className={`text-xs ${
+                                  notification.read ? 'text-gray-400' : 'text-gray-500'
+                                }`}>
+                                  {formatNotificationTime(notification.timestamp)}
+                                </span>
+                                {!notification.read && (
+                                  <div className="w-2 h-2 bg-blue-500 rounded-full" />
+                                )}
+                              </div>
+                            </div>
+                            <p className={`text-xs mt-1 ${
+                              notification.read ? 'text-gray-500' : 'text-gray-600'
+                            }`}>
+                              {notification.message}
+                            </p>
+                          </div>
+                          
+                          {/* Actions */}
+                          <div className="flex items-center space-x-1">
+                            {!notification.read && (
+                              <motion.button
+                                whileTap={{ scale: 0.95 }}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  markNotificationAsRead(notification.id);
+                                }}
+                                className="p-1 hover:bg-gray-200 rounded"
+                                title="Markeer als gelezen"
+                              >
+                                <Check size={12} className="text-gray-500" />
+                              </motion.button>
+                            )}
+                            <motion.button
+                              whileTap={{ scale: 0.95 }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                deleteNotification(notification.id);
+                              }}
+                              className="p-1 hover:bg-red-100 rounded"
+                              title="Verwijderen"
+                            >
+                              <Trash2 size={12} className="text-gray-500 hover:text-red-500" />
+                            </motion.button>
+                          </div>
+                        </div>
+                      </motion.div>
+                    );
+                  })
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Enhanced Status Confirmation Modal */}
       <AnimatePresence>
