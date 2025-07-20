@@ -20,7 +20,7 @@ import {
 import Header from '@/components/mobile-v3/Header';
 import BottomNavigation from '@/components/mobile-v3/BottomNavigation';
 
-interface AgentAction {
+interface AssistantAction {
   id: string;
   type: 'callback' | 'email' | 'meeting' | 'quote' | 'reminder' | 'follow-up';
   title: string;
@@ -41,8 +41,8 @@ interface ChatMessage {
 }
 
 export default function AgentAssistantPage() {
-  const [agentActive, setAgentActive] = useState(true);
-  const [actions, setActions] = useState<AgentAction[]>([]);
+  const [assistantActive, setAgentActive] = useState(true);
+  const [actions, setActions] = useState<AssistantAction[]>([]);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [isRecording, setIsRecording] = useState(false);
   const [textInput, setTextInput] = useState('');
@@ -267,7 +267,7 @@ export default function AgentAssistantPage() {
     }
   };
 
-  const getActionIcon = (type: AgentAction['type']) => {
+  const getActionIcon = (type: AssistantAction['type']) => {
     switch (type) {
       case 'callback': return Phone;
       case 'email': return Mail;
@@ -278,7 +278,7 @@ export default function AgentAssistantPage() {
     }
   };
 
-  const getPriorityColor = (priority: AgentAction['priority']) => {
+  const getPriorityColor = (priority: AssistantAction['priority']) => {
     switch (priority) {
       case 'high': return 'border-l-red-400 bg-red-50';
       case 'medium': return 'border-l-yellow-400 bg-yellow-50';
@@ -297,20 +297,18 @@ export default function AgentAssistantPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
+      <div className="min-h-screen clean-background flex items-center justify-center">
         <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-blue-500" />
-          <p className="text-gray-600">Agent laden...</p>
+          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4" style={{ color: 'var(--color-primary)' }} />
+          <p style={{ color: 'var(--color-text-secondary)' }}>Assistant laden...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen pb-20" style={{
-      background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)'
-    }}>
-      <Header title="Agent Assistant" showBack />
+    <div className="min-h-screen pb-20 clean-background">
+      <Header title="Assistant" showBack />
 
       <div className="px-4 py-4">
         {/* Agent Status */}
@@ -319,13 +317,18 @@ export default function AgentAssistantPage() {
           animate={{ opacity: 1, y: 0 }}
           className="mb-6"
         >
-          <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+          <div className="blabla-card">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
-                <div className={`w-3 h-3 rounded-full ${agentActive ? 'bg-green-500' : 'bg-red-500'}`} />
+                <div 
+                  className="w-3 h-3 rounded-full" 
+                  style={{ 
+                    backgroundColor: assistantActive ? 'var(--color-success)' : 'var(--color-error)' 
+                  }} 
+                />
                 <div>
                   <h2 className="font-semibold text-gray-900">
-                    Agent {agentActive ? 'Actief' : 'Inactief'}
+                    Assistant {assistantActive ? 'Actief' : 'Inactief'}
                   </h2>
                   <p className="text-sm text-gray-600">
                     {actions.filter(a => a.status === 'pending').length} nieuwe acties
@@ -334,10 +337,18 @@ export default function AgentAssistantPage() {
               </div>
               <motion.button
                 whileTap={{ scale: 0.95 }}
-                onClick={() => setAgentActive(!agentActive)}
-                className={`p-3 rounded-full ${agentActive ? 'bg-green-100' : 'bg-red-100'}`}
+                onClick={() => setAgentActive(!assistantActive)}
+                className="p-3 rounded-full"
+                style={{
+                  backgroundColor: assistantActive ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)'
+                }}
               >
-                <Power size={20} className={agentActive ? 'text-green-600' : 'text-red-600'} />
+                <Power 
+                  size={20} 
+                  style={{ 
+                    color: assistantActive ? 'var(--color-success)' : 'var(--color-error)' 
+                  }} 
+                />
               </motion.button>
             </div>
           </div>
@@ -350,7 +361,7 @@ export default function AgentAssistantPage() {
           transition={{ delay: 0.1 }}
           className="mb-6"
         >
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Acties van Agent</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Acties van Assistant</h3>
           <div className="space-y-3">
             <AnimatePresence>
               {actions.filter(action => action.status === 'pending').map((action) => (
@@ -486,11 +497,11 @@ export default function AgentAssistantPage() {
 }
 
 interface ActionCardProps {
-  action: AgentAction;
+  action: AssistantAction;
   onSwipe: (id: string, direction: 'approve' | 'reject') => void;
   formatTimeAgo: (timestamp: number) => string;
-  getActionIcon: (type: AgentAction['type']) => any;
-  getPriorityColor: (priority: AgentAction['priority']) => string;
+  getActionIcon: (type: AssistantAction['type']) => any;
+  getPriorityColor: (priority: AssistantAction['priority']) => string;
 }
 
 function ActionCard({ action, onSwipe, formatTimeAgo, getActionIcon, getPriorityColor }: ActionCardProps) {
@@ -516,12 +527,18 @@ function ActionCard({ action, onSwipe, formatTimeAgo, getActionIcon, getPriority
         }
       }}
       whileDrag={{ scale: 1.05 }}
-      className={`rounded-xl p-4 border-l-4 shadow-sm cursor-grab active:cursor-grabbing ${getPriorityColor(action.priority)}`}
+      className={`blabla-card border-l-4 cursor-grab active:cursor-grabbing ${getPriorityColor(action.priority)}`}
     >
       <div className="flex items-start space-x-3">
         <div className="flex-shrink-0">
-          <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center">
-            <Icon size={20} className="text-blue-600" />
+          <div 
+            className="w-10 h-10 rounded-lg flex items-center justify-center"
+            style={{
+              backgroundColor: 'rgba(0, 188, 212, 0.1)',
+              color: 'var(--color-primary)'
+            }}
+          >
+            <Icon size={20} />
           </div>
         </div>
         

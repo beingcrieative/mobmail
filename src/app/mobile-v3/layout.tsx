@@ -110,8 +110,8 @@ export default function MobileLayout({ children }: MobileLayoutProps) {
       { name: 'apple-mobile-web-app-capable', content: 'yes' },
       { name: 'apple-mobile-web-app-status-bar-style', content: 'black-translucent' },
       { name: 'mobile-web-app-capable', content: 'yes' },
-      { name: 'theme-color', content: '#000000' },
-      { name: 'msapplication-navbutton-color', content: '#000000' },
+      { name: 'theme-color', content: '#00BCD4' },
+      { name: 'msapplication-navbutton-color', content: '#00BCD4' },
       { name: 'apple-mobile-web-app-title', content: 'VoicemailAI' }
     ];
 
@@ -168,7 +168,7 @@ export default function MobileLayout({ children }: MobileLayoutProps) {
         display: none !important;
       }
       
-      /* Mobile app container */
+      /* Mobile app container - Clean Professional */
       .mobile-app-container {
         position: fixed;
         top: 0;
@@ -177,29 +177,33 @@ export default function MobileLayout({ children }: MobileLayoutProps) {
         bottom: 0;
         height: 100vh;
         height: 100dvh;
-        background: #f9fafb;
+        background: var(--background-subtle);
         overflow: hidden;
         display: flex;
         flex-direction: column;
         z-index: 1000;
       }
       
-      /* Status bar safe area */
+      /* Status bar safe area - BlaBlaCar Style */
       .mobile-status-bar {
         height: env(safe-area-inset-top, 44px);
-        background: #000;
+        background: rgba(255, 255, 255, 0.2);
+        backdrop-filter: blur(8px);
         display: flex;
         align-items: center;
         justify-content: space-between;
         padding: 0 env(safe-area-inset-left, 16px) 0 env(safe-area-inset-right, 16px);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
       }
       
-      /* Main content area */
+      /* Main content area - BlaBlaCar Style */
       .mobile-content {
         flex: 1;
         overflow-y: auto;
         -webkit-overflow-scrolling: touch;
         padding-bottom: env(safe-area-inset-bottom, 80px);
+        background: transparent;
+        position: relative;
       }
       
       /* Bottom navigation safe area */
@@ -271,7 +275,12 @@ export default function MobileLayout({ children }: MobileLayoutProps) {
             initial={{ opacity: 0, y: -50 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -50 }}
-            className="fixed top-16 left-4 right-4 z-50 bg-blue-600 text-white rounded-lg p-4 shadow-lg"
+            className="fixed top-16 left-4 right-4 z-50 glass-card text-white p-4"
+            style={{
+              background: 'var(--accent-gradient)',
+              borderRadius: 'var(--radius-md)',
+              boxShadow: 'var(--card-shadow-hover)'
+            }}
           >
             <div className="flex items-center justify-between">
               <div className="flex-1">
@@ -281,13 +290,23 @@ export default function MobileLayout({ children }: MobileLayoutProps) {
               <div className="flex space-x-2 ml-4">
                 <button
                   onClick={dismissUpdate}
-                  className="px-3 py-1 text-xs bg-blue-700 rounded hover:bg-blue-800 transition-colors"
+                  className="px-3 py-1 text-xs rounded transition-colors"
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.2)',
+                    color: 'white',
+                    borderRadius: 'var(--radius-sm)'
+                  }}
                 >
                   Later
                 </button>
                 <button
                   onClick={handleInstallUpdate}
-                  className="px-3 py-1 text-xs bg-white text-blue-600 rounded hover:bg-gray-100 transition-colors font-medium"
+                  className="px-3 py-1 text-xs rounded transition-colors font-medium"
+                  style={{
+                    background: 'white',
+                    color: 'var(--color-primary)',
+                    borderRadius: 'var(--radius-sm)'
+                  }}
                 >
                   Update
                 </button>

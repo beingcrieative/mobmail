@@ -1,26 +1,234 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Glassmorphism Design System - Verfijnde Diepte */
+  
+  /* Colors - BlaBlaCar Inspired Palette */
+  --color-primary: #00BCD4;
+  --color-secondary: #1DE9B6;
+  --color-background: #F8FAFB;
+  --color-surface: #FFFFFF;
+  --color-accent: #FF9800;
+  
+  /* Text Colors - BlaBlaCar Style */
+  --color-text-primary: #004D40;
+  --color-text-secondary: #757575;
+  --color-text-muted: #BDBDBD;
+  --color-text-white: #FFFFFF;
+  
+  /* Accent Colors */
+  --color-success: #10B981;
+  --color-warning: #F59E0B;
+  --color-error: #EF4444;
+  
+  /* Typography */
+  --font-family-primary: 'Inter', -apple-system, sans-serif;
+  --font-size-h1: 32px;
+  --font-size-h2: 24px;
+  --font-size-h3: 20px;
+  --font-size-body: 16px;
+  --font-size-small: 14px;
+  --font-size-tiny: 12px;
+  --font-weight-light: 300;
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-bold: 700;
+  
+  /* Spacing System */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+  
+  /* Professional Card Effects */
+  --card-background: #FFFFFF;
+  --background-subtle: #F8FAFB;
+  --background-clean: #FFFFFF;
+  --card-border: rgba(0, 0, 0, 0.08);
+  --card-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  --card-shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --accent-gradient: linear-gradient(135deg, #00BCD4 0%, #1DE9B6 100%);
+  
+  /* Shadows */
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.12);
+  --shadow-primary: 0 2px 8px rgba(74, 144, 226, 0.3);
+  --shadow-primary-hover: 0 4px 12px rgba(74, 144, 226, 0.4);
+  
+  /* Border Radius */
+  --radius-sm: 8px;
+  --radius-md: 16px;
+  --radius-lg: 24px;
+  --radius-full: 9999px;
+  
+  /* Transitions */
+  --transition-default: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-fast: all 0.15s ease-out;
+  
+  /* Legacy support */
+  --background: var(--color-background);
+  --foreground: var(--color-text-primary);
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --color-background: var(--color-background);
+  --color-foreground: var(--color-text-primary);
+  --font-sans: var(--font-family-primary);
   --font-mono: var(--font-geist-mono);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    /* Dark mode - maintain glassmorphism with darker tones */
+    --color-background: #0F1419;
+    --color-surface: #1A1F2E;
+    --glass-background: rgba(26, 31, 46, 0.7);
+    --glass-background-strong: rgba(26, 31, 46, 0.9);
+    --glass-background-light: rgba(26, 31, 46, 0.6);
+    --color-text-primary: #FFFFFF;
+    --color-text-secondary: #B4BCC8;
+    --color-text-muted: #8B949E;
+    
+    /* Legacy support */
+    --background: var(--color-background);
+    --foreground: var(--color-text-primary);
   }
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-background);
+  color: var(--color-text-primary);
+  font-family: var(--font-family-primary);
+}
+
+
+/* BlaBlaCar Card Utility Classes */
+.blabla-card {
+  background: var(--card-background);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--card-shadow);
+  padding: var(--spacing-lg);
+}
+
+.blabla-card-compact {
+  background: var(--card-background);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--card-shadow);
+  padding: var(--spacing-md);
+}
+
+.blabla-gradient-bg {
+  background: var(--card-background-gradient);
+  color: var(--color-text-white);
+}
+
+.blabla-button-primary {
+  background: var(--color-primary);
+  color: var(--color-text-white);
+  border-radius: 24px;
+  padding: 16px 24px;
+  box-shadow: var(--card-shadow);
+  transition: var(--transition-default);
+  border: none;
+  font-weight: var(--font-weight-medium);
+  font-size: var(--font-size-body);
+  min-height: 48px;
+}
+
+.blabla-button-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--card-shadow-hover);
+}
+
+.blabla-button-secondary {
+  background: transparent;
+  color: var(--color-primary);
+  border-radius: 24px;
+  padding: 16px 24px;
+  transition: var(--transition-default);
+  border: 1px solid var(--color-primary);
+  font-weight: var(--font-weight-medium);
+  font-size: var(--font-size-body);
+  min-height: 48px;
+}
+
+.blabla-button-secondary:hover {
+  background: rgba(0, 188, 212, 0.1);
+  transform: translateY(-1px);
+}
+
+.blabla-input {
+  background: var(--card-background);
+  border-radius: var(--radius-sm);
+  padding: var(--spacing-md);
+  border: 1px solid var(--card-border);
+  box-shadow: var(--card-shadow);
+  transition: var(--transition-fast);
+  font-family: var(--font-family-primary);
+  font-size: var(--font-size-body);
+}
+
+.blabla-input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(0, 188, 212, 0.1);
+}
+
+/* Professional Components */
+.accent-hero {
+  background: var(--accent-gradient);
+  color: var(--color-text-white);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-xl);
+  text-align: center;
+}
+
+.clean-background {
+  background: var(--background-subtle);
+}
+
+/* Clean Navigation */
+.clean-navigation {
+  background: var(--card-background);
+  border-top: 1px solid var(--card-border);
+  box-shadow: 0 -1px 8px rgba(0, 0, 0, 0.04);
+}
+
+/* Subtle Animations */
+.hover-lift {
+  transition: var(--transition-default);
+}
+
+.hover-lift:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--card-shadow-hover);
+}
+
+.press-scale {
+  transition: var(--transition-fast);
+}
+
+.press-scale:active {
+  transform: scale(0.98);
+}
+
+/* Status Bar Glassmorphism for Mobile */
+.glass-status-bar {
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: var(--glass-backdrop-blur);
+}
+
+/* Accessibility - Ensure proper contrast */
+@media (prefers-reduced-motion: reduce) {
+  .glass-hover-lift,
+  .glass-press-scale,
+  .glass-button-primary,
+  .glass-button-secondary {
+    transition: none;
+    transform: none;
+  }
 }

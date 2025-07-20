@@ -34,43 +34,101 @@ export default function Header({
   };
 
   return (
-    <div className="bg-white/95 backdrop-blur-md border-b border-gray-200 px-4 py-3">
-      <div className="flex items-center justify-between">
+    <div 
+      style={{
+        background: 'transparent',
+        padding: 'var(--spacing-md)',
+        height: '80px',
+        display: 'flex',
+        alignItems: 'center'
+      }}
+    >
+      <div className="flex items-center justify-between w-full">
         {/* Left side */}
         <div className="flex items-center">
           {showBack && (
             <motion.button
-              whileTap={{ scale: 0.95 }}
+              whileTap={{ scale: 0.98 }}
+              whileHover={{ scale: 1.02, y: -1 }}
               onClick={handleBack}
-              className="p-2 rounded-full bg-gray-100 hover:bg-gray-200 mr-3"
+              className="mr-3"
+              style={{
+                padding: 'var(--spacing-sm)',
+                borderRadius: 'var(--radius-sm)',
+                background: 'rgba(255, 255, 255, 0.2)',
+                backdropFilter: 'blur(8px)',
+                border: '1px solid rgba(255, 255, 255, 0.3)',
+                transition: 'var(--transition-default)'
+              }}
             >
-              <ArrowLeft size={20} className="text-gray-600" />
+              <ArrowLeft 
+                size={20} 
+                style={{ color: 'var(--color-text-secondary)' }} 
+              />
             </motion.button>
           )}
           
-          <h1 className="text-xl font-bold text-gray-900">{title}</h1>
+          <h1 
+            style={{
+              fontSize: 'var(--font-size-h2)',
+              fontWeight: 'var(--font-weight-bold)',
+              color: 'var(--color-text-primary)',
+              fontFamily: 'var(--font-family-primary)'
+            }}
+          >
+            {title}
+          </h1>
         </div>
 
         {/* Right side */}
         <div className="flex items-center space-x-2">
           {showNotifications && (
             <motion.button
-              whileTap={{ scale: 0.95 }}
+              whileTap={{ scale: 0.98 }}
+              whileHover={{ scale: 1.02, y: -1 }}
               onClick={handleNotifications}
-              className="p-2 rounded-full bg-gray-100 hover:bg-gray-200 relative"
+              className="relative"
+              style={{
+                padding: 'var(--spacing-sm)',
+                borderRadius: 'var(--radius-sm)',
+                background: 'rgba(255, 255, 255, 0.2)',
+                backdropFilter: 'blur(8px)',
+                border: '1px solid rgba(255, 255, 255, 0.3)',
+                transition: 'var(--transition-default)'
+              }}
             >
-              <Bell size={20} className="text-gray-600" />
-              <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-white"></div>
+              <Bell 
+                size={20} 
+                style={{ color: 'var(--color-text-secondary)' }} 
+              />
+              <div 
+                className="absolute -top-1 -right-1 w-3 h-3 rounded-full border-2"
+                style={{
+                  background: 'var(--color-error)',
+                  borderColor: 'white'
+                }}
+              ></div>
             </motion.button>
           )}
           
           {showSettings && (
             <motion.button
-              whileTap={{ scale: 0.95 }}
+              whileTap={{ scale: 0.98 }}
+              whileHover={{ scale: 1.02, y: -1 }}
               onClick={() => router.push('/mobile-v3/settings')}
-              className="p-2 rounded-full bg-gray-100 hover:bg-gray-200"
+              style={{
+                padding: 'var(--spacing-sm)',
+                borderRadius: 'var(--radius-sm)',
+                background: 'rgba(255, 255, 255, 0.2)',
+                backdropFilter: 'blur(8px)',
+                border: '1px solid rgba(255, 255, 255, 0.3)',
+                transition: 'var(--transition-default)'
+              }}
             >
-              <Settings size={20} className="text-gray-600" />
+              <Settings 
+                size={20} 
+                style={{ color: 'var(--color-text-secondary)' }} 
+              />
             </motion.button>
           )}
         </div>

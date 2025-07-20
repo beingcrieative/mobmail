@@ -10,7 +10,6 @@ import BottomNavigation from '@/components/mobile-v3/BottomNavigation';
 import { useAuth } from '@/lib/hooks/useAuth';
 import AuthDebugInfo from '@/components/mobile-v3/AuthDebugInfo';
 import AuthStatus from '@/components/mobile-v3/AuthStatus';
-import SupabaseTest from '@/components/debug/SupabaseTest';
 
 interface DashboardStats {
   todayVoicemails: number;
@@ -99,6 +98,8 @@ export default function MobileHomePage() {
   const [dataLoading, setDataLoading] = useState(false);
   const [forwardingStatus, setForwardingStatus] = useState<{[key: string]: {status: string, lastChecked: string}}>({});
   const [loadingStates, setLoadingStates] = useState<{[key: string]: boolean}>({});
+  const [showStatusModal, setShowStatusModal] = useState(false);
+  const [pendingStatusCheck, setPendingStatusCheck] = useState<{type: string, statusCode: string} | null>(null);
   const router = useRouter();
 
   // Fetch user data when authentication state changes
@@ -203,12 +204,29 @@ export default function MobileHomePage() {
       }
     };
 
-  // Load forwarding status from localStorage
+  // Load forwarding status from localStorage with expiration check
   useEffect(() => {
     const savedStatus = localStorage.getItem('voicemail_forwarding_status');
     if (savedStatus) {
       try {
-        setForwardingStatus(JSON.parse(savedStatus));
+        const parsedStatus = JSON.parse(savedStatus);
+        const cleanedStatus: any = {};
+        
+        // Remove expired status entries (older than 24 hours)
+        Object.keys(parsedStatus).forEach(key => {
+          const statusData = parsedStatus[key];
+          const lastChecked = new Date(statusData.lastChecked);
+          const hoursSinceCheck = (Date.now() - lastChecked.getTime()) / (1000 * 60 * 60);
+          
+          if (hoursSinceCheck < 24) {
+            cleanedStatus[key] = statusData;
+          }
+        });
+        
+        setForwardingStatus(cleanedStatus);
+        
+        // Save cleaned status back to localStorage
+        localStorage.setItem('voicemail_forwarding_status', JSON.stringify(cleanedStatus));
       } catch (error) {
         console.error('Error parsing forwarding status:', error);
       }
@@ -258,28 +276,80 @@ export default function MobileHomePage() {
     }
   };
 
-  // Check forwarding status
+  // Check forwarding status with improved UI
   const checkForwardingStatus = (type: string, statusCode: string) => {
     const encodedStatusCode = encodeURIComponent(statusCode);
     
     try {
       window.location.href = `tel:${encodedStatusCode}`;
       
-      // Show status modal after delay
+      // Store pending check and show modal after delay
       setTimeout(() => {
-        const result = window.confirm(
-          `De dialer is geopend met code ${statusCode}\n\n` +
-          `1. Druk op de groene belknop\n` +
-          `2. Wacht op het antwoord\n` +
-          `3. Klik OK als doorschakeling ACTIEF is, Cancel als NIET ACTIEF`
-        );
-        
-        updateForwardingStatus(type, result ? 'active' : 'inactive');
+        setPendingStatusCheck({ type, statusCode });
+        setShowStatusModal(true);
       }, 2000);
     } catch (error) {
       console.error('Error checking status:', error);
       toast.error('Kon status niet controleren');
     }
+  };
+
+  // Bulk status check for all forwarding types
+  const checkAllForwardingStatus = () => {
+    const statusCheckCodes = ['*#21#', '*#67#', '*#61#'];
+    let currentCheckIndex = 0;
+    
+    const checkNext = () => {
+      if (currentCheckIndex < statusCheckCodes.length) {
+        const code = statusCheckCodes[currentCheckIndex];
+        const encodedCode = encodeURIComponent(code);
+        
+        try {
+          window.location.href = `tel:${encodedCode}`;
+          currentCheckIndex++;
+          
+          if (currentCheckIndex < statusCheckCodes.length) {
+            setTimeout(() => {
+              const shouldContinue = window.confirm(
+                `Status controle ${currentCheckIndex}/3 voltooid.\n\nWil je doorgaan met de volgende controle?`
+              );
+              if (shouldContinue) {
+                checkNext();
+              }
+            }, 3000);
+          } else {
+            toast.success('Alle status controles voltooid!');
+          }
+        } catch (error) {
+          console.error('Error in bulk status check:', error);
+          toast.error('Fout bij status controle');
+        }
+      }
+    };
+    
+    toast.info('Start bulk status controle...');
+    checkNext();
+  };
+
+  // Handle status confirmation from modal
+  const handleStatusConfirmation = (isActive: boolean) => {
+    if (pendingStatusCheck) {
+      updateForwardingStatus(pendingStatusCheck.type, isActive ? 'active' : 'inactive');
+      setShowStatusModal(false);
+      setPendingStatusCheck(null);
+    }
+  };
+
+  // Get status age in human readable format
+  const getStatusAge = (lastChecked: string) => {
+    const now = new Date();
+    const checked = new Date(lastChecked);
+    const hoursDiff = Math.floor((now.getTime() - checked.getTime()) / (1000 * 60 * 60));
+    
+    if (hoursDiff < 1) return 'Net gecontroleerd';
+    if (hoursDiff === 1) return '1 uur geleden';
+    if (hoursDiff < 24) return `${hoursDiff} uur geleden`;
+    return 'Meer dan 24 uur geleden';
   };
 
   // Update current time every minute
@@ -290,20 +360,97 @@ export default function MobileHomePage() {
 
   const getGreeting = () => {
     const hour = currentTime.getHours();
-    if (hour < 12) return 'Goedemorgen';
-    if (hour < 18) return 'Goedemiddag';
-    return 'Goedenavond';
+    const day = currentTime.getDay();
+    const isWeekend = day === 0 || day === 6;
+    const isMonday = day === 1;
+    const isFriday = day === 5;
+    
+    // Base greeting by time
+    let baseGreeting = '';
+    if (hour < 12) baseGreeting = 'Goedemorgen';
+    else if (hour < 18) baseGreeting = 'Goedemiddag';
+    else baseGreeting = 'Goedenavond';
+    
+    // Add contextual elements
+    if (isWeekend) return `${baseGreeting} en fijn weekend`;
+    if (isMonday) return `${baseGreeting} en een goede start van de week`;
+    if (isFriday) return `${baseGreeting} en alvast een fijn weekend`;
+    
+    return baseGreeting;
+  };
+
+  const getPersonalizedMessage = () => {
+    const { todayVoicemails, totalTranscriptions, timeSaved } = stats;
+    const hour = currentTime.getHours();
+    const isEarlyMorning = hour < 9;
+    const isLateEvening = hour > 20;
+    
+    // Achievement-based messages
+    if (todayVoicemails >= 10) {
+      return "Wat een productieve dag! Je hebt al veel voicemails verwerkt.";
+    }
+    if (totalTranscriptions >= 100) {
+      return "Geweldig! Je hebt al meer dan 100 transcripties verzameld.";
+    }
+    if (timeSaved >= 60) {
+      return `Je hebt al ${timeSaved} minuten bespaard met VoicemailAI!`;
+    }
+    
+    // Time-based messages
+    if (isEarlyMorning) {
+      return "Je bent er vroeg bij vandaag! Klaar voor een productieve dag?";
+    }
+    if (isLateEvening) {
+      return "Nog even laat aan het werk? Je voicemails zijn veilig bij ons.";
+    }
+    
+    // Default messages based on activity
+    if (todayVoicemails === 0) {
+      return "Een rustige dag tot nu toe. Alle voicemails staan klaar voor je.";
+    }
+    
+    return `Je hebt ${todayVoicemails} voicemails vandaag verwerkt`;
   };
 
   const getFirstName = (email: string) => {
     if (!email) return 'Gebruiker';
-    return email.split('@')[0].split('.')[0];
+    // Try to get name from email, capitalize first letter
+    const nameFromEmail = email.split('@')[0].split('.')[0];
+    return nameFromEmail.charAt(0).toUpperCase() + nameFromEmail.slice(1);
+  };
+
+  // Enhanced name resolution - try to get real name from profile
+  const [profileName, setProfileName] = useState<string>('');
+  
+  useEffect(() => {
+    const fetchProfileName = async () => {
+      if (user?.id) {
+        try {
+          const response = await fetch('/api/user/profile');
+          if (response.ok) {
+            const profileData = await response.json();
+            if (profileData.name && profileData.name.trim()) {
+              setProfileName(profileData.name.split(' ')[0]); // First name only
+            }
+          }
+        } catch (error) {
+          console.log('Could not fetch profile name, using email fallback');
+        }
+      }
+    };
+    
+    fetchProfileName();
+  }, [user?.id]);
+  
+  const getDisplayName = () => {
+    if (profileName) return profileName;
+    return getFirstName(user?.email || '');
   };
 
   const doorschakelActies = [
     {
       icon: PhoneForwarded,
-      label: 'Alle gesprekken',
+      label: 'Altijd doorschakelen',
       color: 'bg-blue-500',
       ussdCode: '*21*{FORWARDING_NUMBER}#',
       statusCode: '*#21#',
@@ -312,7 +459,7 @@ export default function MobileHomePage() {
     },
     {
       icon: PhoneOff,
-      label: 'Bij wegdrukken',
+      label: 'Bezet doorschakelen',
       color: 'bg-orange-500',
       ussdCode: '*67*{FORWARDING_NUMBER}#',
       statusCode: '*#67#',
@@ -321,7 +468,7 @@ export default function MobileHomePage() {
     },
     {
       icon: PhoneMissed,
-      label: 'Geen gehoor',
+      label: 'Niet opgenomen',
       color: 'bg-purple-500',
       ussdCode: '*61*{FORWARDING_NUMBER}#',
       statusCode: '*#61#',
@@ -387,7 +534,7 @@ export default function MobileHomePage() {
   }
 
   return (
-    <div className="h-full bg-gray-50">
+    <div className="h-full" style={{ background: 'transparent' }}>
       <Header 
         title="VoicemailAI" 
         showNotifications={stats.unreadCount > 0}
@@ -397,17 +544,34 @@ export default function MobileHomePage() {
       <div className="px-4 py-6 pb-24">
         <AuthStatus />
         
-        {/* Welcome Section */}
+        {/* Welcome Section - Clean Professional */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mb-8"
+          className="accent-hero mb-6"
+          style={{
+            margin: '0 -20px 24px -20px'
+          }}
         >
-          <h2 className="text-2xl font-bold text-gray-900 mb-1">
-            {getGreeting()}, {getFirstName(user?.email || '')}!
+          <h2
+            style={{
+              fontSize: 'var(--font-size-h2)',
+              fontWeight: 'var(--font-weight-bold)',
+              color: 'var(--color-text-white)',
+              marginBottom: 'var(--spacing-sm)',
+              fontFamily: 'var(--font-family-primary)'
+            }}
+          >
+            {getGreeting()}, {getDisplayName()}!
           </h2>
-          <p className="text-gray-600">
-            {dataLoading ? 'Gegevens laden...' : `Je hebt ${stats.todayVoicemails} voicemails vandaag verwerkt`}
+          <p 
+            style={{
+              color: 'rgba(255, 255, 255, 0.9)',
+              fontSize: 'var(--font-size-body)',
+              fontFamily: 'var(--font-family-primary)'
+            }}
+          >
+            {dataLoading ? 'Gegevens laden...' : getPersonalizedMessage()}
           </p>
         </motion.div>
 
@@ -418,26 +582,88 @@ export default function MobileHomePage() {
           transition={{ delay: 0.1 }}
           className="grid grid-cols-2 gap-4 mb-8"
         >
-          <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+          <div 
+            className="blabla-card hover-lift"
+            style={{
+              minHeight: '120px'
+            }}
+          >
             <div className="flex items-center justify-between mb-2">
-              <Clock size={20} className="text-blue-500" />
-              <span className="text-xs text-green-600 font-medium">
+              <Clock 
+                size={20} 
+                style={{ color: 'var(--color-text-secondary)' }}
+              />
+              <span 
+                style={{
+                  fontSize: 'var(--font-size-tiny)',
+                  color: 'var(--color-success)',
+                  fontWeight: 'var(--font-weight-medium)'
+                }}
+              >
                 +{stats.weeklyTrend}%
               </span>
             </div>
-            <p className="text-2xl font-bold text-gray-900">{stats.timeSaved}min</p>
-            <p className="text-sm text-gray-600">Tijd bespaard</p>
+            <p 
+              style={{
+                fontSize: '36px',
+                fontWeight: 'var(--font-weight-bold)',
+                color: 'var(--color-text-primary)',
+                fontFamily: 'var(--font-family-primary)'
+              }}
+            >
+              {stats.timeSaved}min
+            </p>
+            <p 
+              style={{
+                fontSize: 'var(--font-size-small)',
+                color: 'var(--color-text-secondary)',
+                fontFamily: 'var(--font-family-primary)'
+              }}
+            >
+              Tijd bespaard
+            </p>
           </div>
           
-          <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+          <div 
+            className="blabla-card hover-lift"
+            style={{
+              minHeight: '120px'
+            }}
+          >
             <div className="flex items-center justify-between mb-2">
-              <TrendingUp size={20} className="text-purple-500" />
-              <span className="text-xs text-blue-600 font-medium">
+              <TrendingUp 
+                size={20} 
+                style={{ color: 'var(--color-text-secondary)' }}
+              />
+              <span 
+                style={{
+                  fontSize: 'var(--font-size-tiny)',
+                  color: 'var(--color-secondary)',
+                  fontWeight: 'var(--font-weight-medium)'
+                }}
+              >
                 {stats.totalTranscriptions}
               </span>
             </div>
-            <p className="text-2xl font-bold text-gray-900">{stats.todayVoicemails}</p>
-            <p className="text-sm text-gray-600">Vandaag</p>
+            <p 
+              style={{
+                fontSize: '36px',
+                fontWeight: 'var(--font-weight-bold)',
+                color: 'var(--color-text-primary)',
+                fontFamily: 'var(--font-family-primary)'
+              }}
+            >
+              {stats.todayVoicemails}
+            </p>
+            <p 
+              style={{
+                fontSize: 'var(--font-size-small)',
+                color: 'var(--color-text-secondary)',
+                fontFamily: 'var(--font-family-primary)'
+              }}
+            >
+              Vandaag
+            </p>
           </div>
         </motion.div>
 
@@ -448,7 +674,28 @@ export default function MobileHomePage() {
           transition={{ delay: 0.2 }}
           className="mb-8"
         >
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Snelle acties</h3>
+          <h3 
+            style={{
+              fontSize: 'var(--font-size-h3)',
+              fontWeight: 'var(--font-weight-bold)',
+              color: 'var(--color-text-primary)',
+              marginBottom: 'var(--spacing-md)',
+              fontFamily: 'var(--font-family-primary)'
+            }}
+          >
+            Snelle acties
+          </h3>
+          
+          {/* Bulk Status Check Button */}
+          <motion.button
+            whileTap={{ scale: 0.95 }}
+            onClick={checkAllForwardingStatus}
+            className="mb-4 flex items-center justify-center space-x-2 px-4 py-3 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors"
+          >
+            <BarChart3 size={16} className="text-gray-600" />
+            <span className="text-sm font-medium text-gray-700">Alle statussen controleren</span>
+          </motion.button>
+          
           <div className="grid grid-cols-4 gap-4">
             {doorschakelActies.map((action, index) => {
               const Icon = action.icon;
@@ -479,19 +726,22 @@ export default function MobileHomePage() {
               return (
                 <motion.button
                   key={index}
-                  whileTap={{ scale: 0.95 }}
-                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  whileHover={{ scale: 1.02, y: -2 }}
                   onClick={handleActivate}
                   onContextMenu={(e) => {
                     e.preventDefault();
                     handleLongPress();
                   }}
                   disabled={isLoading}
-                  className="relative bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex flex-col items-center active:bg-gray-50 transition-all duration-200"
+                  className="relative blabla-card-compact hover-lift flex flex-col items-center"
                   style={{ 
                     WebkitTapHighlightColor: 'transparent',
                     userSelect: 'none',
-                    touchAction: 'manipulation'
+                    touchAction: 'manipulation',
+                    padding: 'var(--spacing-sm)',
+                    height: '88px',
+                    minWidth: '70px'
                   }}
                 >
                   {/* Status indicator */}
@@ -501,22 +751,44 @@ export default function MobileHomePage() {
                   />
                   
                   {/* Icon container */}
-                  <div className={`w-12 h-12 rounded-xl ${action.color} flex items-center justify-center mb-3`}>
+                  <div className={`w-10 h-10 rounded-lg ${action.color} flex items-center justify-center mb-2`}>
                     {isLoading ? (
-                      <Loader2 size={20} className="text-white animate-spin" />
+                      <Loader2 size={18} className="text-white animate-spin" />
                     ) : (
-                      <Icon size={20} className="text-white" />
+                      <Icon size={18} className="text-white" />
                     )}
                   </div>
                   
                   {/* Label */}
-                  <span className="text-xs font-medium text-gray-700 text-center">
+                  <span 
+                    className="text-center"
+                    style={{
+                      fontSize: 'var(--font-size-tiny)',
+                      fontWeight: 'var(--font-weight-medium)',
+                      color: 'var(--color-text-primary)',
+                      fontFamily: 'var(--font-family-primary)',
+                      lineHeight: '1.2'
+                    }}
+                  >
                     {action.label}
                   </span>
                   
-                  {/* Status badge */}
-                  <div className="mt-1 text-xs text-gray-500">
-                    {getStatusLabel(currentStatus)}
+                  {/* Status badge with age */}
+                  <div 
+                    className="mt-1 text-center"
+                    style={{
+                      fontSize: '10px',
+                      color: 'var(--color-text-muted)',
+                      fontFamily: 'var(--font-family-primary)',
+                      lineHeight: '1'
+                    }}
+                  >
+                    <div>{getStatusLabel(currentStatus)}</div>
+                    {forwardingStatus[action.type]?.lastChecked && (
+                      <div style={{ fontSize: '9px', marginTop: '2px' }}>
+                        {getStatusAge(forwardingStatus[action.type].lastChecked)}
+                      </div>
+                    )}
                   </div>
                 </motion.button>
               );
@@ -531,7 +803,17 @@ export default function MobileHomePage() {
           transition={{ delay: 0.3 }}
           className="mb-8"
         >
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Recente activiteit</h3>
+          <h3 
+            style={{
+              fontSize: 'var(--font-size-h3)',
+              fontWeight: 'var(--font-weight-bold)',
+              color: 'var(--color-text-primary)',
+              marginBottom: 'var(--spacing-md)',
+              fontFamily: 'var(--font-family-primary)'
+            }}
+          >
+            Recente activiteit
+          </h3>
           <div className="space-y-3">
             {recentActivity.map((activity, index) => {
               const Icon = getActivityIcon(activity.type);
@@ -542,7 +824,7 @@ export default function MobileHomePage() {
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 0.1 * index }}
                   whileTap={{ scale: 0.98 }}
-                  className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 flex items-center space-x-3 active:bg-gray-50 cursor-pointer transition-all duration-200"
+                  className="blabla-card-compact flex items-center space-x-3 cursor-pointer hover-lift"
                   style={{ 
                     WebkitTapHighlightColor: 'transparent',
                     touchAction: 'manipulation'
@@ -565,33 +847,96 @@ export default function MobileHomePage() {
           </div>
         </motion.div>
 
-        {/* Today's Summary */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
-          className="bg-gradient-to-r from-blue-500 to-purple-600 rounded-2xl p-6 text-white"
-        >
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold">Vandaag's samenvatting</h3>
-            <TrendingUp size={24} className="text-white/80" />
-          </div>
-          <div className="grid grid-cols-2 gap-4 text-center">
-            <div>
-              <p className="text-2xl font-bold">{stats.totalTranscriptions}</p>
-              <p className="text-blue-100 text-sm">Transcripties</p>
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{stats.timeSaved}min</p>
-              <p className="text-blue-100 text-sm">Bespaard</p>
-            </div>
-          </div>
-        </motion.div>
       </div>
+
+      {/* Enhanced Status Confirmation Modal */}
+      <AnimatePresence>
+        {showStatusModal && pendingStatusCheck && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="blabla-card w-full max-w-md"
+            >
+              <div className="text-center mb-6">
+                <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Phone size={24} className="text-blue-600" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  Status Controle
+                </h3>
+                <p className="text-gray-600">
+                  De dialer is geopend met code <strong>{pendingStatusCheck.statusCode}</strong>
+                </p>
+              </div>
+
+              <div className="bg-gray-50 rounded-xl p-4 mb-6">
+                <h4 className="font-medium text-gray-900 mb-3">Instructies:</h4>
+                <ol className="space-y-2 text-sm text-gray-600">
+                  <li className="flex items-start">
+                    <span className="flex-shrink-0 w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs mr-3 mt-0.5">1</span>
+                    Druk op de groene belknop in je dialer
+                  </li>
+                  <li className="flex items-start">
+                    <span className="flex-shrink-0 w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs mr-3 mt-0.5">2</span>
+                    Wacht op het automatische antwoord van je provider
+                  </li>
+                  <li className="flex items-start">
+                    <span className="flex-shrink-0 w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs mr-3 mt-0.5">3</span>
+                    Luister naar de status van je doorschakeling
+                  </li>
+                </ol>
+              </div>
+
+              <div className="space-y-3">
+                <p className="text-center text-sm text-gray-600 mb-4">
+                  Is de doorschakeling actief volgens het antwoord?
+                </p>
+                
+                <div className="grid grid-cols-2 gap-3">
+                  <motion.button
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => handleStatusConfirmation(false)}
+                    className="flex items-center justify-center space-x-2 px-4 py-3 bg-red-100 text-red-700 rounded-xl hover:bg-red-200 transition-colors"
+                  >
+                    <X size={18} />
+                    <span className="font-medium">Niet Actief</span>
+                  </motion.button>
+                  
+                  <motion.button
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => handleStatusConfirmation(true)}
+                    className="flex items-center justify-center space-x-2 px-4 py-3 bg-green-100 text-green-700 rounded-xl hover:bg-green-200 transition-colors"
+                  >
+                    <PhoneForwarded size={18} />
+                    <span className="font-medium">Actief</span>
+                  </motion.button>
+                </div>
+                
+                <motion.button
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => {
+                    setShowStatusModal(false);
+                    setPendingStatusCheck(null);
+                  }}
+                  className="w-full px-4 py-3 text-sm font-medium text-gray-600 hover:text-gray-800 transition-colors"
+                >
+                  Annuleren
+                </motion.button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <BottomNavigation />
       <AuthDebugInfo />
-      <SupabaseTest />
     </div>
   );
 }
