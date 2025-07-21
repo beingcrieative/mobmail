@@ -10,24 +10,7 @@ import BottomNavigation from '@/components/mobile-v3/BottomNavigation';
 import { useAuth } from '@/lib/hooks/useAuth';
 import AuthDebugInfo from '@/components/mobile-v3/AuthDebugInfo';
 import AuthStatus from '@/components/mobile-v3/AuthStatus';
-
-interface DashboardStats {
-  todayVoicemails: number;
-  timeSaved: number;
-  weeklyTrend: number;
-  totalTranscriptions: number;
-  unreadCount: number;
-  avgDuration: number;
-}
-
-interface RecentActivity {
-  id: string;
-  type: 'voicemail' | 'call' | 'transcription' | 'insight';
-  title: string;
-  subtitle: string;
-  time: string;
-  priority: 'high' | 'medium' | 'low';
-}
+import { StatisticsService, DashboardStats, RecentActivity } from '@/lib/services/statisticsService';
 
 interface Notification {
   id: string;
@@ -41,20 +24,6 @@ interface Notification {
   metadata?: any;
 }
 
-interface Transcription {
-  id: string;
-  customerName: string;
-  externalNumber: string;
-  startTime: number;
-  callDuration: number;
-  transcriptSummary: string;
-  transcript: Array<{
-    role: string;
-    message: string;
-    timeInCallSecs?: number;
-  }>;
-  client_id?: string;
-}
 
 // Get forwarding number from environment
 const getForwardingNumber = () => {
@@ -132,57 +101,9 @@ export default function MobileHomePage() {
   const fetchRealData = async (userId: string) => {
     setDataLoading(true);
     try {
-      console.log('Fetching transcriptions for user:', userId);
-      const response = await fetch(`/api/transcriptions?clientId=${userId}&t=${new Date().getTime()}`);
-      
-      if (!response.ok) {
-        console.error('API response not ok:', response.status, response.statusText);
-        throw new Error(`Failed to fetch data: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      const transcriptions: Transcription[] = data.transcriptions || [];
-      
-      console.log('Fetched transcriptions:', transcriptions.length);
-      
-      // Calculate real stats
-      const now = new Date();
-      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      const todayTimestamp = Math.floor(todayStart.getTime() / 1000);
-      
-      const todayTranscriptions = transcriptions.filter(t => t.startTime >= todayTimestamp);
-      const totalDuration = transcriptions.reduce((sum, t) => sum + (t.callDuration || 0), 0);
-      const avgDuration = transcriptions.length > 0 ? Math.round(totalDuration / transcriptions.length) : 0;
-      
-      // Calculate time saved (assuming 2 minutes saved per transcription)
-      const timeSavedMinutes = transcriptions.length * 2;
-      
-      setStats({
-        todayVoicemails: todayTranscriptions.length,
-        timeSaved: timeSavedMinutes,
-        weeklyTrend: 12, // Mock trend for now
-        totalTranscriptions: transcriptions.length,
-        unreadCount: transcriptions.length, // All are considered unread for now
-        avgDuration
-      });
-      
-      // Generate recent activity from real data
-      const recentActivities: RecentActivity[] = transcriptions
-        .slice(0, 3)
-        .map((t, index) => {
-          const timeAgo = formatTimeAgo(t.startTime);
-          return {
-            id: t.id,
-            type: 'transcription' as const,
-            title: 'Voicemail transcriptie',
-            subtitle: `${t.customerName || 'Onbekende beller'} - ${t.transcriptSummary?.substring(0, 50) || 'Transcriptie beschikbaar'}...`,
-            time: timeAgo,
-            priority: index === 0 ? 'high' : index === 1 ? 'medium' : 'low'
-          };
-        });
-      
-      setRecentActivity(recentActivities);
-      
+      const { dashboardStats, recentActivity } = await StatisticsService.getUserStatistics(userId);
+      setStats(dashboardStats);
+      setRecentActivity(recentActivity);
     } catch (error) {
       console.error('Error fetching real data:', error);
       // Show more specific error information
@@ -204,21 +125,6 @@ export default function MobileHomePage() {
     }
   };
 
-    const formatTimeAgo = (timestamp: number) => {
-      const now = Math.floor(Date.now() / 1000);
-      const diffInSeconds = now - timestamp;
-      const diffInMinutes = Math.floor(diffInSeconds / 60);
-      const diffInHours = Math.floor(diffInMinutes / 60);
-      const diffInDays = Math.floor(diffInHours / 24);
-      
-      if (diffInMinutes < 60) {
-        return `${diffInMinutes} min geleden`;
-      } else if (diffInHours < 24) {
-        return `${diffInHours} uur geleden`;
-      } else {
-        return `${diffInDays} dag${diffInDays === 1 ? '' : 'en'} geleden`;
-      }
-    };
 
   // Load forwarding status from localStorage with expiration check
   useEffect(() => {

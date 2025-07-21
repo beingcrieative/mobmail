@@ -2,12 +2,12 @@
 
 import { motion } from 'framer-motion';
 import { usePathname, useRouter } from 'next/navigation';
-import { Home, Phone, MessageSquare, User, Calendar } from 'lucide-react';
+import { Home, Phone, MessageSquare, User, BarChart3 } from 'lucide-react';
 
 const navigationItems = [
   { icon: Home, label: 'Home', href: '/mobile-v3' },
   { icon: Phone, label: 'Transcripties', href: '/mobile-v3/transcriptions' },
-  { icon: Calendar, label: 'Calendar', href: '/mobile-v3/calendar' },
+  { icon: BarChart3, label: 'Analytics', href: '/mobile-v3/analytics' },
   { icon: MessageSquare, label: 'Assistant', href: '/mobile-v3/agent' },
   { icon: User, label: 'Profile', href: '/mobile-v3/profile' }
 ];
