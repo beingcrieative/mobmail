@@ -5,27 +5,7 @@ import { motion } from 'framer-motion';
 import { TrendingUp, Clock, Phone, BarChart3, Calendar, Filter } from 'lucide-react';
 import Header from '@/components/mobile-v3/Header';
 import BottomNavigation from '@/components/mobile-v3/BottomNavigation';
-
-interface AnalyticsData {
-  totalVoicemails: number;
-  timeSaved: number;
-  averageCallDuration: number;
-  weeklyGrowth: number;
-  monthlyStats: {
-    month: string;
-    voicemails: number;
-    timeSaved: number;
-  }[];
-  dailyStats: {
-    day: string;
-    count: number;
-  }[];
-  priorityDistribution: {
-    high: number;
-    medium: number;
-    low: number;
-  };
-}
+import { StatisticsService, AnalyticsData } from '@/lib/services/statisticsService';
 
 export default function AnalyticsPage() {
   const [data, setData] = useState<AnalyticsData | null>(null);
@@ -68,107 +48,9 @@ export default function AnalyticsPage() {
           return;
         }
         
-        const response = await fetch(`/api/transcriptions?clientId=${userId}&t=${new Date().getTime()}`);
-        if (!response.ok) throw new Error('Failed to fetch transcriptions');
-        
-        const result = await response.json();
-        const transcriptions = result.transcriptions || [];
-        
-        if (transcriptions.length === 0) {
-          setData({
-            totalVoicemails: 0,
-            timeSaved: 0,
-            averageCallDuration: 0,
-            weeklyGrowth: 0,
-            monthlyStats: [],
-            dailyStats: [],
-            priorityDistribution: { high: 0, medium: 0, low: 0 }
-          });
-          setLoading(false);
-          return;
-        }
-        
-        // Calculate real analytics
-        const now = new Date();
-        const totalDuration = transcriptions.reduce((sum: number, t: any) => sum + (t.callDuration || 0), 0);
-        const avgDuration = Math.round(totalDuration / transcriptions.length);
-        const timeSavedMinutes = transcriptions.length * 2; // Assume 2 minutes saved per transcription
-        
-        // Calculate daily stats for current week
-        const weekStart = new Date(now);
-        weekStart.setDate(now.getDate() - now.getDay() + 1); // Monday
-        const dailyStats = [];
-        const dayNames = ['Ma', 'Di', 'Wo', 'Do', 'Vr', 'Za', 'Zo'];
-        
-        for (let i = 0; i < 7; i++) {
-          const day = new Date(weekStart);
-          day.setDate(weekStart.getDate() + i);
-          const dayStart = Math.floor(day.getTime() / 1000);
-          const dayEnd = dayStart + 24 * 60 * 60;
-          
-          const dayCount = transcriptions.filter((t: any) => 
-            t.startTime >= dayStart && t.startTime < dayEnd
-          ).length;
-          
-          dailyStats.push({ day: dayNames[i], count: dayCount });
-        }
-        
-        // Calculate monthly stats for last 5 months
-        const monthlyStats = [];
-        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dec'];
-        
-        for (let i = 4; i >= 0; i--) {
-          const month = new Date(now.getFullYear(), now.getMonth() - i, 1);
-          const monthStart = Math.floor(month.getTime() / 1000);
-          const monthEnd = Math.floor(new Date(now.getFullYear(), now.getMonth() - i + 1, 0).getTime() / 1000);
-          
-          const monthTranscriptions = transcriptions.filter((t: any) => 
-            t.startTime >= monthStart && t.startTime <= monthEnd
-          );
-          
-          const monthTimeSaved = monthTranscriptions.length * 2;
-          
-          monthlyStats.push({
-            month: monthNames[month.getMonth()],
-            voicemails: monthTranscriptions.length,
-            timeSaved: monthTimeSaved
-          });
-        }
-        
-        // Calculate priority distribution
-        const getPriority = (duration: number, summary: string) => {
-          if (duration > 120 || summary?.toLowerCase().includes('urgent')) return 'high';
-          if (duration > 60) return 'medium';
-          return 'low';
-        };
-        
-        const priorities = transcriptions.map((t: any) => 
-          getPriority(t.callDuration || 0, t.transcriptSummary || '')
-        );
-        
-        const high = priorities.filter((p: string) => p === 'high').length;
-        const medium = priorities.filter((p: string) => p === 'medium').length;
-        const low = priorities.filter((p: string) => p === 'low').length;
-        const total = transcriptions.length;
-        
-        const priorityDistribution = {
-          high: total > 0 ? Math.round((high / total) * 100) : 0,
-          medium: total > 0 ? Math.round((medium / total) * 100) : 0,
-          low: total > 0 ? Math.round((low / total) * 100) : 0
-        };
-        
-        // Calculate weekly growth (mock for now, would need historical data)
-        const weeklyGrowth = Math.max(0, Math.min(50, Math.round(Math.random() * 20)));
-        
-        setData({
-          totalVoicemails: transcriptions.length,
-          timeSaved: timeSavedMinutes,
-          averageCallDuration: avgDuration,
-          weeklyGrowth,
-          monthlyStats,
-          dailyStats,
-          priorityDistribution
-        });
+        // Use shared statistics service
+        const { analyticsData } = await StatisticsService.getUserStatistics(userId);
+        setData(analyticsData);
         
       } catch (error) {
         console.error('Error fetching analytics data:', error);
