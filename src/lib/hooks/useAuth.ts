@@ -35,25 +35,41 @@ export function useAuth(): AuthState & AuthActions {
     error: null
   });
 
-  // Utility functions for storage management
+  // Utility functions for storage management (client-side only)
   const setCookie = useCallback((name: string, value: string, days: number = 7) => {
-    const expires = new Date();
-    expires.setTime(expires.getTime() + (days * 24 * 60 * 60 * 1000));
-    document.cookie = `${name}=${value}; expires=${expires.toUTCString()}; path=/; SameSite=Lax`;
+    if (typeof document === 'undefined') return;
+    try {
+      const expires = new Date();
+      expires.setTime(expires.getTime() + (days * 24 * 60 * 60 * 1000));
+      document.cookie = `${name}=${value}; expires=${expires.toUTCString()}; path=/; SameSite=Lax`;
+    } catch (error) {
+      console.warn('Error setting cookie:', error);
+    }
   }, []);
 
   const getCookie = useCallback((name: string): string | null => {
-    const value = `; ${document.cookie}`;
-    const parts = value.split(`; ${name}=`);
-    if (parts.length === 2) {
-      const cookieValue = parts.pop()?.split(';').shift();
-      return cookieValue || null;
+    if (typeof document === 'undefined') return null;
+    try {
+      const value = `; ${document.cookie}`;
+      const parts = value.split(`; ${name}=`);
+      if (parts.length === 2) {
+        const cookieValue = parts.pop()?.split(';').shift();
+        return cookieValue || null;
+      }
+      return null;
+    } catch (error) {
+      console.warn('Error reading cookie:', error);
+      return null;
     }
-    return null;
   }, []);
 
   const removeCookie = useCallback((name: string) => {
-    document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/`;
+    if (typeof document === 'undefined') return;
+    try {
+      document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/`;
+    } catch (error) {
+      console.warn('Error removing cookie:', error);
+    }
   }, []);
 
   const getStoredValue = useCallback(async (key: string): Promise<string | null> => {
@@ -137,12 +153,34 @@ export function useAuth(): AuthState & AuthActions {
         return;
       }
 
-      // Get current session
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      // Get current session with error handling
+      let session = null;
+      let sessionError = null;
+      
+      try {
+        const result = await supabase.auth.getSession();
+        session = result.data?.session;
+        sessionError = result.error;
+      } catch (error) {
+        console.warn('Auth state error:', error);
+        // If AuthSessionMissingError, treat as unauthenticated rather than error
+        if (error instanceof Error && error.message.includes('AuthSessionMissingError')) {
+          console.log('No auth session found, treating as unauthenticated');
+          await clearStoredValues();
+          setAuthState({
+            isAuthenticated: false,
+            user: null,
+            loading: false,
+            error: null
+          });
+          return;
+        }
+        sessionError = error;
+      }
       
       if (sessionError) {
         console.error('Session error:', sessionError);
-        clearStoredValues();
+        await clearStoredValues();
         setAuthState({
           isAuthenticated: false,
           user: null,
@@ -209,16 +247,26 @@ export function useAuth(): AuthState & AuthActions {
         return false;
       }
 
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+      let data = null;
+      let error = null;
+      
+      try {
+        const result = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+        data = result.data;
+        error = result.error;
+      } catch (authError) {
+        console.error('Auth error during login:', authError);
+        error = authError;
+      }
 
       if (error) {
         setAuthState(prev => ({ 
           ...prev, 
           loading: false, 
-          error: error.message 
+          error: error.message || 'Login failed'
         }));
         return false;
       }
@@ -285,13 +333,17 @@ export function useAuth(): AuthState & AuthActions {
     }
   }, [clearStoredValues]);
 
-  // Initialize authentication state
+  // Initialize authentication state (client-side only)
   useEffect(() => {
-    refreshAuth();
+    if (typeof window !== 'undefined') {
+      refreshAuth();
+    }
   }, [refreshAuth]);
 
-  // Listen for storage changes (for cross-tab synchronization)
+  // Listen for storage changes (for cross-tab synchronization, client-side only)
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
     const handleStorageChange = (e: StorageEvent) => {
       if (Object.values(STORAGE_KEYS).includes(e.key as any)) {
         console.log('Storage changed, refreshing auth');

@@ -1,0 +1,3 @@
+- als je een thred opend, dan zie je de gesprekken. boven s een blaude bellen knop, en een groene whatsapp knop. die whtapp moet weg. 
+- als je naar een egsprek gaat en je gaat naar details om de hele transciptie telezen, schold het laaste bericht niet ver genoeg aar oven om te lezen. hij blijft gedeeltelijk verscholen achter de menu balk. hij moet volledig zichbaar komen boven de navigatie balk.
+- op de home scherm die je tee blokken genaamd tijd besspaard en Vandaag. Die info is overbodig dus deze 2 vierkante kunne nweg. dan schuiven de snelkoppelingen van de ussd naar bove zorrect zichtbaar.

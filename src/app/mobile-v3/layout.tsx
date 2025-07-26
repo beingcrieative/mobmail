@@ -50,18 +50,28 @@ export default function MobileLayout({ children }: MobileLayoutProps) {
 
   // Apply mobile configuration using the service
   useEffect(() => {
-    // Apply mobile configuration with all the previous settings
+    // Only run on client side after hydration
+    if (typeof window === 'undefined') return;
+    
+    // Detect Samsung Fold or narrow devices
+    const isNarrowDevice = window.innerWidth <= 320;
+    const isFoldDevice = window.innerWidth <= 280;
+    
+    // Apply mobile configuration with fold-specific settings
     applyMobileConfig({
       statusBarStyle: 'transparent',
       hideNavigation: true,
       enableSafeArea: true,
       orientationLock: 'portrait',
       fullscreen: false,
-      disableZoom: true,
+      disableZoom: isFoldDevice ? false : true, // Allow zoom on fold devices for accessibility
       enablePullToRefresh: false,
       customMetaTags: {
         'apple-mobile-web-app-title': 'VoicemailAI',
         'application-name': 'VoicemailAI',
+        'viewport': isNarrowDevice 
+          ? 'width=device-width, initial-scale=1.0, maximum-scale=3.0, user-scalable=yes, viewport-fit=cover'
+          : 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover',
       },
     });
 
@@ -79,8 +89,8 @@ export default function MobileLayout({ children }: MobileLayoutProps) {
       startUrl: '/mobile-v3/',
     });
 
-    // Register minimal service worker for PWA compliance
-    if ('serviceWorker' in navigator) {
+    // Register minimal service worker for PWA compliance (client-side only)
+    if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
       navigator.serviceWorker.register('/sw.js', {
         scope: '/',
         updateViaCache: 'none'
@@ -94,8 +104,10 @@ export default function MobileLayout({ children }: MobileLayoutProps) {
     }
   }, [applyMobileConfig, setupPWA]);
 
-  // Engagement tracking setup
+  // Engagement tracking setup (client-side only)
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
     const initializeEngagement = () => {
       try {
         // Check for install eligibility after some engagement

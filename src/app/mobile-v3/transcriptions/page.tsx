@@ -527,16 +527,16 @@ function ConversationThreadCard({ thread, onOpen, getTimeAgo, index }: Conversat
       whileHover={{ scale: 1.01 }}
       whileTap={{ scale: 0.99 }}
       onClick={handleClick}
-      className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 hover:shadow-md transition-all duration-200 cursor-pointer"
+      className="bg-white rounded-xl p-4 max-fold:p-2 max-fold:rounded-lg shadow-sm border border-gray-100 hover:shadow-md transition-all duration-200 cursor-pointer"
     >
-      <div className="flex items-center space-x-3">
+      <div className="flex items-center space-x-3 max-fold:space-x-2">
         {/* Customer Avatar */}
         <div className="relative">
-          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-semibold text-lg">
+          <div className="w-12 h-12 max-fold:w-fold-avatar max-fold:h-fold-avatar rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-semibold text-lg max-fold:text-sm">
             {thread.customerName.charAt(0).toUpperCase()}
           </div>
           {hasMultipleCalls && (
-            <div className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-white text-xs font-bold">
+            <div className="absolute -top-1 -right-1 w-5 h-5 max-fold:w-fold-badge max-fold:h-fold-badge bg-red-500 rounded-full flex items-center justify-center text-white text-xs max-fold:text-fold-xs font-bold">
               {thread.totalCalls}
             </div>
           )}
@@ -544,31 +544,31 @@ function ConversationThreadCard({ thread, onOpen, getTimeAgo, index }: Conversat
         
         {/* Conversation Info */}
         <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between mb-1">
-            <h3 className="font-semibold text-gray-900 text-base truncate">
+          <div className="flex items-center justify-between mb-1 max-fold:mb-0">
+            <h3 className="font-semibold text-gray-900 text-base max-fold:text-fold-base truncate">
               {thread.customerName}
             </h3>
-            <span className="text-xs text-gray-500 flex-shrink-0">
+            <span className="text-xs max-fold:text-fold-xs text-gray-500 flex-shrink-0">
               {getTimeAgo(thread.lastCallTime)}
             </span>
           </div>
           
-          <p className="text-sm text-gray-600 truncate mb-2">
+          <p className="text-sm max-fold:text-fold-sm text-gray-600 truncate mb-2 max-fold:mb-1">
             {thread.phoneNumber}
           </p>
           
           {/* Last Message Preview */}
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-gray-500 truncate flex-1">
+          <div className="flex items-center justify-between max-fold:flex-col max-fold:items-start max-fold:space-y-1">
+            <p className="text-sm max-fold:text-fold-sm text-gray-500 truncate flex-1 max-fold:w-full">
               {lastCall?.transcriptSummary || 'Geen samenvatting beschikbaar'}
             </p>
-            <div className="flex items-center space-x-2 ml-2 flex-shrink-0">
+            <div className="flex items-center space-x-2 max-fold:space-x-1 ml-2 max-fold:ml-0 flex-shrink-0 max-fold:self-end">
               {hasMultipleCalls && (
-                <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full">
+                <span className="text-xs max-fold:text-fold-xs bg-blue-100 text-blue-700 px-2 py-1 max-fold:px-1 max-fold:py-0.5 rounded-full">
                   {thread.totalCalls} gesprekken
                 </span>
               )}
-              <ChevronDown size={16} className="text-gray-400 transform -rotate-90" />
+              <ChevronDown size={16} className="text-gray-400 transform -rotate-90 max-fold:hidden" />
             </div>
           </div>
         </div>
@@ -648,7 +648,7 @@ function ThreadDetailModal({ thread, onClose, formatTimestamp, formatDuration, g
         className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center"
         onClick={onClose}
       >
-        <div className="bg-white rounded-xl p-6 m-4 max-w-sm">
+        <div className="bg-white rounded-xl p-6 m-4 max-w-sm max-fold:max-w-modal-fold max-xs:max-w-modal-xs">
           <h3 className="text-lg font-semibold text-gray-900 mb-2">Geen gespreksdata</h3>
           <p className="text-gray-600 mb-4">Er zijn geen transcripties beschikbaar voor dit gesprek.</p>
           <button 
@@ -676,18 +676,18 @@ function ThreadDetailModal({ thread, onClose, formatTimestamp, formatDuration, g
         exit={{ y: '100%' }}
         transition={{ type: 'spring', damping: 25, stiffness: 200 }}
         onClick={(e) => e.stopPropagation()}
-        className="bg-white rounded-t-3xl w-full max-w-lg max-h-[90vh] flex flex-col"
+        className="bg-white rounded-t-3xl w-full max-w-lg max-fold:max-w-modal-fold max-xs:max-w-modal-xs max-h-[90vh] flex flex-col"
       >
         {/* Modal Header */}
-        <div className="p-4 border-b border-gray-100 bg-gray-50 rounded-t-3xl">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-semibold">
+        <div className="p-4 max-fold:p-2 border-b border-gray-100 bg-gray-50 rounded-t-3xl max-fold:rounded-t-xl">
+          <div className="flex items-center justify-between mb-3 max-fold:mb-1">
+            <div className="flex items-center space-x-3 max-fold:space-x-2">
+              <div className="w-10 h-10 max-fold:w-8 max-fold:h-8 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-semibold max-fold:text-sm">
                 {thread.customerName.charAt(0).toUpperCase()}
               </div>
               <div>
-                <h2 className="font-semibold text-gray-900">{thread.customerName}</h2>
-                <p className="text-sm text-gray-600">{thread.phoneNumber}</p>
+                <h2 className="font-semibold text-gray-900 max-fold:text-sm">{thread.customerName}</h2>
+                <p className="text-sm max-fold:text-xs text-gray-600">{thread.phoneNumber}</p>
               </div>
             </div>
             <motion.button
@@ -700,35 +700,27 @@ function ThreadDetailModal({ thread, onClose, formatTimestamp, formatDuration, g
           </div>
           
           {/* Quick Actions */}
-          <div className="flex space-x-2">
+          <div className="flex justify-center">
             <motion.button
               whileTap={{ scale: 0.95 }}
-              className="flex-1 bg-blue-600 text-white py-2.5 px-4 rounded-xl text-sm font-medium flex items-center justify-center space-x-2"
+              className="bg-blue-600 text-white py-2.5 max-fold:py-1.5 px-6 max-fold:px-4 rounded-xl max-fold:rounded-lg text-sm max-fold:text-xs font-medium flex items-center justify-center space-x-2 max-fold:space-x-1 min-w-[120px]"
               onClick={() => window.open(`tel:${thread.phoneNumber}`, '_self')}
             >
-              <Phone size={14} />
+              <Phone size={14} className="max-fold:w-3 max-fold:h-3" />
               <span>Bellen</span>
-            </motion.button>
-            <motion.button
-              whileTap={{ scale: 0.95 }}
-              className="flex-1 bg-green-600 text-white py-2.5 px-4 rounded-xl text-sm font-medium flex items-center justify-center space-x-2"
-              onClick={() => window.open(`https://wa.me/${thread.phoneNumber.replace(/[^0-9]/g, '')}`, '_blank')}
-            >
-              <MessageCircle size={14} />
-              <span>WhatsApp</span>
             </motion.button>
           </div>
         </div>
         
         {/* Call History List - Now the main content */}
-        <div className="flex-1 overflow-y-auto p-4" style={{ WebkitOverflowScrolling: 'touch' }}>
+        <div className="flex-1 overflow-y-auto p-4 max-fold:p-2" style={{ WebkitOverflowScrolling: 'touch' }}>
           <div className="space-y-3">
             {thread.transcriptions.map((call, index) => (
               <motion.div
                 key={call.id}
                 whileTap={{ scale: 0.98 }}
                 onClick={() => openCallDetail(call)}
-                className="p-4 rounded-xl border border-gray-200 bg-gray-50 hover:bg-gray-100 transition-all duration-200 cursor-pointer"
+                className="p-4 max-fold:p-2 rounded-xl max-fold:rounded-lg border border-gray-200 bg-gray-50 hover:bg-gray-100 transition-all duration-200 cursor-pointer"
               >
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center space-x-2">
@@ -803,20 +795,20 @@ function CallDetailModal({ call, onClose, formatTimestamp, formatDuration }: Cal
         exit={{ y: '100%' }}
         transition={{ type: 'spring', damping: 25, stiffness: 200 }}
         onClick={(e) => e.stopPropagation()}
-        className="bg-white rounded-t-3xl w-full max-w-lg max-h-[90vh] flex flex-col"
+        className="bg-white rounded-t-3xl w-full max-w-lg max-fold:max-w-modal-fold max-xs:max-w-modal-xs max-h-[90vh] flex flex-col"
       >
         {/* Modal Header */}
-        <div className="p-4 border-b border-gray-100 bg-gray-50 rounded-t-3xl">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white">
+        <div className="p-4 max-fold:p-2 border-b border-gray-100 bg-gray-50 rounded-t-3xl max-fold:rounded-t-xl">
+          <div className="flex items-center justify-between mb-3 max-fold:mb-1">
+            <div className="flex items-center space-x-3 max-fold:space-x-2">
+              <div className="w-10 h-10 max-fold:w-8 max-fold:h-8 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white max-fold:text-sm">
                 {call.callDirection === 'inbound' ? '📞' : '📱'}
               </div>
               <div>
-                <h2 className="font-semibold text-gray-900">
+                <h2 className="font-semibold text-gray-900 max-fold:text-sm">
                   {call.callDirection === 'inbound' ? 'Inkomend Gesprek' : 'Uitgaand Gesprek'}
                 </h2>
-                <p className="text-sm text-gray-600">{formatTimestamp(call.startTime)}</p>
+                <p className="text-sm max-fold:text-xs text-gray-600">{formatTimestamp(call.startTime)}</p>
               </div>
             </div>
             <motion.button
@@ -829,23 +821,23 @@ function CallDetailModal({ call, onClose, formatTimestamp, formatDuration }: Cal
           </div>
           
           {/* Call Info Strip */}
-          <div className="flex items-center justify-between text-sm bg-white rounded-lg p-3">
-            <div className="flex items-center space-x-4">
+          <div className="flex items-center justify-between text-sm max-fold:text-xs bg-white rounded-lg max-fold:rounded-md p-3 max-fold:p-2">
+            <div className="flex items-center space-x-4 max-fold:space-x-2">
               <div className="text-center">
-                <p className="text-xs text-gray-500 mb-1">Duur</p>
-                <p className="font-medium text-gray-900">{formatDuration(call.callDuration)}</p>
+                <p className="text-xs max-fold:text-fold-xs text-gray-500 mb-1">Duur</p>
+                <p className="font-medium text-gray-900 max-fold:text-xs">{formatDuration(call.callDuration)}</p>
               </div>
-              <div className="w-px h-8 bg-gray-200"></div>
+              <div className="w-px h-8 max-fold:h-6 bg-gray-200"></div>
               <div className="text-center">
-                <p className="text-xs text-gray-500 mb-1">Status</p>
-                <p className="font-medium text-green-600">Voltooid</p>
+                <p className="text-xs max-fold:text-fold-xs text-gray-500 mb-1">Status</p>
+                <p className="font-medium text-green-600 max-fold:text-xs">Voltooid</p>
               </div>
             </div>
           </div>
         </div>
         
         {/* Call Content */}
-        <div className="flex-1 overflow-y-auto p-4" style={{ WebkitOverflowScrolling: 'touch' }}>
+        <div className="flex-1 overflow-y-auto p-4 max-fold:p-2" style={{ WebkitOverflowScrolling: 'touch' }}>
           <div className="space-y-6">
             {/* Summary */}
             {call.transcriptSummary && (
@@ -856,8 +848,8 @@ function CallDetailModal({ call, onClose, formatTimestamp, formatDuration }: Cal
                   </div>
                   <h3 className="font-medium text-gray-900">Samenvatting</h3>
                 </div>
-                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-4 border border-blue-100">
-                  <p className="text-sm text-blue-900 leading-relaxed">
+                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl max-fold:rounded-lg p-4 max-fold:p-2 border border-blue-100">
+                  <p className="text-sm max-fold:text-xs text-blue-900 leading-relaxed">
                     {call.transcriptSummary}
                   </p>
                 </div>
@@ -879,9 +871,9 @@ function CallDetailModal({ call, onClose, formatTimestamp, formatDuration }: Cal
                   </span>
                 )}
               </div>
-              <div className="bg-gray-50 rounded-xl p-4 min-h-[300px]" style={{ WebkitOverflowScrolling: 'touch' }}>
+              <div className="bg-gray-50 rounded-xl max-fold:rounded-lg p-4 max-fold:p-2 min-h-[300px] max-fold:min-h-[200px] pb-24" style={{ WebkitOverflowScrolling: 'touch' }}>
                 {Array.isArray(call.transcript) && call.transcript.length > 0 ? (
-                  <div className="space-y-4">
+                  <div className="space-y-4 pb-8">
                     {call.transcript.map((message, idx) => (
                       message.message && (
                         <TranscriptMessage
