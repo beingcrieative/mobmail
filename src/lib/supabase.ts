@@ -37,32 +37,45 @@ export function getSupabase() {
 
   // Create and cache the Supabase instance
   supabaseInstance = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    persistSession: true,
-    autoRefreshToken: true,
-    detectSessionInUrl: true,
-    // Use cookies for session storage
-    storageKey: 'sb-auth-token',
-    // Use cookies instead of localStorage
-    storage: {
-      getItem: (key) => {
-        if (typeof document === 'undefined') return null;
-        const value = document.cookie
-          .split('; ')
-          .find((row) => row.startsWith(`${key}=`))
-          ?.split('=')[1];
-        return value ? value : null;
-      },
-      setItem: (key, value) => {
-        if (typeof document === 'undefined') return;
-        document.cookie = `${key}=${value}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
-      },
-      removeItem: (key) => {
-        if (typeof document === 'undefined') return;
-        document.cookie = `${key}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+      storageKey: 'sb-auth-token',
+      // Use improved cookie storage with proper error handling
+      storage: {
+        getItem: (key) => {
+          if (typeof document === 'undefined') return null;
+          try {
+            const value = document.cookie
+              .split('; ')
+              .find((row) => row.startsWith(`${key}=`))
+              ?.split('=')[1];
+            return value ? decodeURIComponent(value) : null;
+          } catch (error) {
+            console.warn('Error reading from cookie storage:', error);
+            return null;
+          }
+        },
+        setItem: (key, value) => {
+          if (typeof document === 'undefined') return;
+          try {
+            const encodedValue = encodeURIComponent(value);
+            document.cookie = `${key}=${encodedValue}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax; Secure=${window.location.protocol === 'https:'}`;
+          } catch (error) {
+            console.warn('Error writing to cookie storage:', error);
+          }
+        },
+        removeItem: (key) => {
+          if (typeof document === 'undefined') return;
+          try {
+            document.cookie = `${key}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax`;
+          } catch (error) {
+            console.warn('Error removing from cookie storage:', error);
+          }
+        },
       },
     },
-  },
   });
   
   return supabaseInstance;
