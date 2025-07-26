@@ -10,6 +10,7 @@ interface HeaderProps {
   showSettings?: boolean;
   showNotifications?: boolean;
   onBack?: () => void;
+  onNotificationClick?: () => void;
 }
 
 export default function Header({ 
@@ -17,7 +18,8 @@ export default function Header({
   showBack = false, 
   showSettings = false, 
   showNotifications = false,
-  onBack 
+  onBack,
+  onNotificationClick
 }: HeaderProps) {
   const router = useRouter();
 
@@ -30,7 +32,11 @@ export default function Header({
   };
 
   const handleNotifications = () => {
-    router.push('/mobile-v3/notifications');
+    if (onNotificationClick) {
+      onNotificationClick();
+    } else {
+      router.push('/mobile-v3/notifications');
+    }
   };
 
   return (
