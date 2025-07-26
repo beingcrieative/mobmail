@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { toast } from 'react-toastify';
+import { useUserProfile } from '@/lib/hooks/useUserProfile';
 
 interface UserProfileFormProps {
   userId: string;
@@ -28,56 +28,34 @@ export default function UserProfileForm({ userId, userEmail }: UserProfileFormPr
     calApiKey: '',
     calEventTypeId: '',
   });
-  const [loading, setLoading] = useState(false);
-  const [fetchingProfile, setFetchingProfile] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [retryCount, setRetryCount] = useState(0);
   const [showInfoTooltip, setShowInfoTooltip] = useState(false);
   const [showCalTooltip, setShowCalTooltip] = useState(false);
 
-  // Fetch user profile data
-  useEffect(() => {
-    const fetchUserProfile = async () => {
-      try {
-        setError(null);
-        
-        // Add a timestamp to prevent caching
-        const timestamp = new Date().getTime();
-        const response = await fetch(`/api/user/profile?t=${timestamp}`);
-        
-        if (!response.ok) {
-          if (response.status === 404) {
-            // User not found in database, but that's okay for new users
-            setFetchingProfile(false);
-            return;
-          }
-          
-          const errorData = await response.json();
-          throw new Error(errorData.error || `Error fetching profile: ${response.statusText}`);
-        }
-        
-        const data = await response.json();
-        
-        setProfile({
-          name: data.name || '',
-          companyName: data.companyName || '',
-          mobileNumber: data.mobileNumber || '',
-          information: data.information || '',
-          calUsername: data.calUsername || '',
-          calApiKey: data.calApiKey || '',
-          calEventTypeId: data.calEventTypeId || '',
-        });
-      } catch (error: any) {
-        console.error('Error fetching user profile:', error);
-        setError(error.message);
-        toast.error('Kon profielgegevens niet ophalen. Probeer het later opnieuw.');
-      } finally {
-        setFetchingProfile(false);
-      }
-    };
+  // Use the new user profile hook
+  const {
+    profile: fetchedProfile,
+    loading,
+    fetchingProfile,
+    error,
+    updateProfile,
+    validateCalCredentials,
+    retryFetch,
+  } = useUserProfile();
 
-    fetchUserProfile();
-  }, [retryCount]);
+  // Update local state when fetched profile changes
+  useEffect(() => {
+    if (fetchedProfile) {
+      setProfile({
+        name: fetchedProfile.name || '',
+        companyName: fetchedProfile.companyName || '',
+        mobileNumber: fetchedProfile.mobileNumber || '',
+        information: fetchedProfile.information || '',
+        calUsername: fetchedProfile.calUsername || '',
+        calApiKey: fetchedProfile.calApiKey || '',
+        calEventTypeId: fetchedProfile.calEventTypeId || '',
+      });
+    }
+  }, [fetchedProfile]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -89,105 +67,32 @@ export default function UserProfileForm({ userId, userEmail }: UserProfileFormPr
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-    setError(null);
+    
+    const success = await updateProfile({
+      name: profile.name,
+      companyName: profile.companyName,
+      mobileNumber: profile.mobileNumber,
+      information: profile.information,
+      calUsername: profile.calUsername,
+      calApiKey: profile.calApiKey,
+      calEventTypeId: profile.calEventTypeId,
+    });
 
-    try {
-      // Add a timestamp to prevent caching
-      const timestamp = new Date().getTime();
-      const response = await fetch(`/api/user/profile?t=${timestamp}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(profile),
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Fout bij het bijwerken van profiel');
-      }
-      
-      toast.success('Profiel succesvol bijgewerkt!');
-      
-      // Also store Cal.com credentials in localStorage for the Calendar component
-      if (profile.calUsername) {
-        localStorage.setItem(`cal_username_${userId}`, profile.calUsername);
-        if (profile.calApiKey) {
-          localStorage.setItem(`cal_api_key_${userId}`, profile.calApiKey);
-        }
-        if (profile.calEventTypeId) {
-          localStorage.setItem(`cal_event_type_id_${userId}`, profile.calEventTypeId);
-        }
-      }
-    } catch (error: any) {
-      console.error('Error updating profile:', error.message);
-      setError(error.message);
-      toast.error(`Fout bij het bijwerken van profiel: ${error.message}`);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleRetry = () => {
-    setRetryCount(prev => prev + 1);
-    setFetchingProfile(true);
-    setError(null);
-    toast.info('Opnieuw proberen...');
+    // The success/error handling is done in the hook
+    // No need for additional logic here
   };
 
   const handleGetEventId = async () => {
-    if (!profile.calApiKey) {
-      toast.error('Voer eerst je Cal.com API sleutel in');
-      return;
-    }
+    const eventType = await validateCalCredentials({
+      username: profile.calUsername,
+      apiKey: profile.calApiKey,
+    });
 
-    if (!profile.calUsername) {
-      toast.error('Voer eerst je Cal.com gebruikersnaam in');
-      return;
-    }
-
-    try {
-      console.log('Making API call with:', {
-        apiKey: profile.calApiKey,
-        slug: '30min'
-      });
-
-      const url = `https://api.cal.com/v1/event-types?apiKey=${profile.calApiKey}&slug=30min`;
-      console.log('URL:', url);
-
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/json',
-        },
-      });
-      
-      console.log('Response status:', response.status);
-      const responseText = await response.text();
-      console.log('Response text:', responseText);
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = JSON.parse(responseText);
-      
-      if (data.event_types && data.event_types.length > 0) {
-        const eventType = data.event_types[0];
-        console.log('Found event type:', eventType);
-        setProfile(prev => ({
-          ...prev,
-          calEventTypeId: eventType.id.toString()
-        }));
-        toast.success('Event Type ID succesvol opgehaald!');
-      } else {
-        console.log('No event types found in response:', data);
-        toast.error('Geen event types gevonden. Controleer of je een 30 minuten event type hebt aangemaakt in je Cal.com dashboard.');
-      }
-    } catch (error: any) {
-      console.error('Error fetching event types:', error);
-      toast.error(`Fout bij het ophalen van event types: ${error.message}`);
+    if (eventType) {
+      setProfile(prev => ({
+        ...prev,
+        calEventTypeId: eventType.id.toString(),
+      }));
     }
   };
 
@@ -230,7 +135,7 @@ export default function UserProfileForm({ userId, userEmail }: UserProfileFormPr
         <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md">
           <p className="text-red-700 dark:text-red-400">{error}</p>
           <button 
-            onClick={handleRetry}
+            onClick={retryFetch}
             className="mt-2 text-sm font-medium text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
           >
             Opnieuw proberen
@@ -439,4 +344,4 @@ export default function UserProfileForm({ userId, userEmail }: UserProfileFormPr
       </form>
     </div>
   );
-} 
+}

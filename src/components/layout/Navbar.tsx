@@ -1,107 +1,39 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { toast } from 'react-toastify';
-import { getSupabase } from '@/lib/supabase';
+import { useAuthState } from '@/lib/hooks/useAuthState';
 
 export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
   const pathname = usePathname();
   const router = useRouter();
-
-  useEffect(() => {
-    const checkAuth = () => {
-      try {
-        // Check for user info in localStorage
-        const userId = localStorage.getItem('userId');
-        const userEmail = localStorage.getItem('userEmail');
-        
-        if (userId && userEmail) {
-          console.log('User info found in localStorage');
-          setIsLoggedIn(true);
-          setIsLoading(false);
-          return;
-        }
-        
-        // Try to get from cookies
-        const getCookie = (name: string) => {
-          const value = `; ${document.cookie}`;
-          const parts = value.split(`; ${name}=`);
-          if (parts.length === 2) return parts.pop()?.split(';').shift();
-          return null;
-        };
-        
-        const cookieUserId = getCookie('userId');
-        const cookieUserEmail = getCookie('userEmail');
-        
-        if (cookieUserId && cookieUserEmail) {
-          console.log('User info found in cookies');
-          setIsLoggedIn(true);
-        } else {
-          console.log('No user info found');
-          setIsLoggedIn(false);
-        }
-      } catch (error) {
-        console.error('Error checking auth status:', error);
-        setIsLoggedIn(false);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    checkAuth();
-
-    // Listen for storage events to update auth state
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'userId' || e.key === 'userEmail') {
-        checkAuth();
-      }
-    };
-
-    window.addEventListener('storage', handleStorageChange);
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-    };
-  }, []);
+  
+  // Use new auth hook instead of direct auth logic
+  const { user, isLoading, isLoggedIn, logout, checkAccess } = useAuthState();
 
   const handleLogout = async () => {
-    try {
-      setIsLoading(true);
-      
-      // Clear localStorage
-      localStorage.removeItem('userId');
-      localStorage.removeItem('userEmail');
-      localStorage.removeItem('supabase.auth.token');
-      
-      // Clear cookies
-      document.cookie = 'userId=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-      document.cookie = 'userEmail=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-      document.cookie = 'authToken=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-      
-      // Also sign out from Supabase
-      const supabase = getSupabase();
-      if (supabase) {
-        await supabase.auth.signOut();
-      }
-      
+    const result = await logout();
+    
+    if (result.success) {
       toast.success('Je bent succesvol uitgelogd.');
       
-      // Force a hard navigation to ensure the session is cleared
-      window.location.href = '/';
-    } catch (error) {
-      console.error('Unexpected logout error:', error);
-      toast.error('Er is een fout opgetreden bij het uitloggen.');
-      setIsLoading(false);
+      if (result.redirectTo) {
+        router.push(result.redirectTo);
+      } else {
+        // Force a hard navigation to ensure the session is cleared
+        window.location.href = '/';
+      }
+    } else {
+      toast.error(result.error || 'Er is een fout opgetreden bij het uitloggen.');
     }
   };
 
   const isActive = (path: string) => pathname === path;
 
-  const handleDashboardClick = (e: React.MouseEvent) => {
+  const handleDashboardClick = async (e: React.MouseEvent) => {
     if (isLoggedIn) {
       // Let the default navigation happen
       console.log('Dashboard click - User is logged in, navigating to dashboard');
@@ -320,4 +252,4 @@ export default function Navbar() {
       </div>
     </nav>
   );
-} 
+}
