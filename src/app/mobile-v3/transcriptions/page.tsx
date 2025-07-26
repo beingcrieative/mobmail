@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Phone, Clock, User, FileText, Play, Pause, ArrowLeft, RefreshCw, Search, Filter, ChevronDown, ChevronUp } from 'lucide-react';
+import { motion, AnimatePresence, PanInfo } from 'framer-motion';
+import { Phone, Clock, User, FileText, Play, Pause, ArrowLeft, RefreshCw, Search, Filter, ChevronDown, ChevronUp, MessageCircle, Archive, Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Header from '@/components/mobile-v3/Header';
 import BottomNavigation from '@/components/mobile-v3/BottomNavigation';
@@ -35,29 +35,48 @@ interface Transcription {
   client_id?: string;
 }
 
+interface ConversationThread {
+  customerName: string;
+  phoneNumber: string;
+  companyName?: string;
+  transcriptions: Transcription[];
+  lastCallTime: number;
+  totalCalls: number;
+  unreadCount?: number;
+}
 
 export default function TranscriptionsPage() {
   const [transcriptions, setTranscriptions] = useState<Transcription[]>([]);
-  const [filteredTranscriptions, setFilteredTranscriptions] = useState<Transcription[]>([]);
+  const [conversationThreads, setConversationThreads] = useState<ConversationThread[]>([]);
+  const [filteredThreads, setFilteredThreads] = useState<ConversationThread[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [expandedRow, setExpandedRow] = useState<string | null>(null);
+  const [selectedThread, setSelectedThread] = useState<ConversationThread | null>(null);
+  const [selectedCall, setSelectedCall] = useState<Transcription | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [dateFilter, setDateFilter] = useState<'all' | 'today' | 'week' | 'month' | 'last3months' | 'custom'>('all');
-  const [sortBy, setSortBy] = useState<'date' | 'duration'>('date');
-  const [showFilters, setShowFilters] = useState(false);
-  const [durationFilter, setDurationFilter] = useState<'all' | 'short' | 'medium' | 'long'>('all');
-  const [customStartDate, setCustomStartDate] = useState('');
-  const [customEndDate, setCustomEndDate] = useState('');
+  const [dateFilter, setDateFilter] = useState<'all' | 'today' | 'week' | 'month'>('all');
+  const [mounted, setMounted] = useState(false);
   const router = useRouter();
 
+  // Prevent hydration issues
   useEffect(() => {
-    fetchTranscriptions();
+    setMounted(true);
   }, []);
 
   useEffect(() => {
-    filterAndSortTranscriptions();
-  }, [transcriptions, searchTerm, dateFilter, sortBy, durationFilter, customStartDate, customEndDate]);
+    if (mounted) {
+      console.log('Component mounted, fetching transcriptions');
+      fetchTranscriptions();
+    }
+  }, [mounted]);
+
+  useEffect(() => {
+    groupTranscriptionsIntoThreads();
+  }, [transcriptions]);
+
+  useEffect(() => {
+    filterThreads();
+  }, [conversationThreads, searchTerm, dateFilter]);
 
   // Get call type based on duration
   const getCallType = (transcription: Transcription): 'short' | 'medium' | 'long' => {
@@ -68,12 +87,15 @@ export default function TranscriptionsPage() {
     return 'long';
   };
 
-
   const fetchTranscriptions = async () => {
+    if (!mounted) return;
+    
     try {
       setLoading(true);
       
       const getUserId = () => {
+        if (typeof window === 'undefined') return null;
+        
         const storedUserId = localStorage.getItem('userId');
         if (storedUserId) return storedUserId;
         
@@ -95,7 +117,7 @@ export default function TranscriptionsPage() {
         return;
       }
       
-      const response = await fetch(`/api/transcriptions?clientId=${userId}&t=${new Date().getTime()}`);
+      const response = await fetch(`/api/transcriptions?clientId=${userId}&t=${Date.now()}`);
       if (!response.ok) throw new Error('Failed to fetch transcriptions');
       
       const data = await response.json();
@@ -125,81 +147,118 @@ export default function TranscriptionsPage() {
     setRefreshing(false);
   };
 
-  const filterAndSortTranscriptions = () => {
-    let filtered = [...transcriptions];
+  const groupTranscriptionsIntoThreads = () => {
+    if (!transcriptions.length) {
+      setConversationThreads([]);
+      return;
+    }
+    
+    const threadsMap = new Map<string, ConversationThread>();
+    
+    transcriptions.forEach(transcription => {
+      const normalizedData = normalizeTranscriptionData(transcription);
+      const key = normalizedData.phoneNumber || 'unknown';
+      
+      if (!threadsMap.has(key)) {
+        threadsMap.set(key, {
+          customerName: normalizedData.customerName,
+          phoneNumber: normalizedData.phoneNumber,
+          companyName: normalizedData.companyName,
+          transcriptions: [],
+          lastCallTime: transcription.startTime,
+          totalCalls: 0
+        });
+      }
+      
+      const thread = threadsMap.get(key)!;
+      thread.transcriptions.push(transcription);
+      thread.totalCalls = thread.transcriptions.length;
+      
+      // Update last call time if this is more recent
+      if (transcription.startTime > thread.lastCallTime) {
+        thread.lastCallTime = transcription.startTime;
+        // Update name/company info with most recent call
+        thread.customerName = normalizedData.customerName;
+        thread.companyName = normalizedData.companyName;
+      }
+    });
+    
+    // Convert to array and sort by last call time
+    const threads = Array.from(threadsMap.values())
+      .map(thread => ({
+        ...thread,
+        transcriptions: thread.transcriptions.sort((a, b) => b.startTime - a.startTime)
+      }))
+      .sort((a, b) => b.lastCallTime - a.lastCallTime);
+    
+    console.log('Generated conversation threads:', threads);
+    setConversationThreads(threads);
+  };
+
+  const filterThreads = () => {
+    let filtered = [...conversationThreads];
 
     // Apply search filter
     if (searchTerm) {
-      filtered = filtered.filter(t => 
-        (t.customerName || t.customer_name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (t.externalNumber || t.caller_phone || '').includes(searchTerm) ||
-        (t.transcriptSummary || '').toLowerCase().includes(searchTerm.toLowerCase())
+      filtered = filtered.filter(thread => 
+        thread.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        thread.phoneNumber.includes(searchTerm) ||
+        (thread.companyName || '').toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
 
-
     // Apply date filter
-    const now = new Date();
-    switch (dateFilter) {
-      case 'today':
-        const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        const todayTimestamp = Math.floor(todayStart.getTime() / 1000);
-        filtered = filtered.filter(t => t.startTime >= todayTimestamp);
-        break;
-      case 'week':
-        const weekStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-        const weekTimestamp = Math.floor(weekStart.getTime() / 1000);
-        filtered = filtered.filter(t => t.startTime >= weekTimestamp);
-        break;
-      case 'month':
-        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-        const monthTimestamp = Math.floor(monthStart.getTime() / 1000);
-        filtered = filtered.filter(t => t.startTime >= monthTimestamp);
-        break;
-      case 'last3months':
-        const threeMonthsStart = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
-        const threeMonthsTimestamp = Math.floor(threeMonthsStart.getTime() / 1000);
-        filtered = filtered.filter(t => t.startTime >= threeMonthsTimestamp);
-        break;
-      case 'custom':
-        if (customStartDate && customEndDate) {
-          const startTimestamp = Math.floor(new Date(customStartDate).getTime() / 1000);
-          const endTimestamp = Math.floor(new Date(customEndDate + 'T23:59:59').getTime() / 1000);
-          filtered = filtered.filter(t => t.startTime >= startTimestamp && t.startTime <= endTimestamp);
-        }
-        break;
+    if (mounted) {
+      const now = new Date();
+      switch (dateFilter) {
+        case 'today':
+          const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+          const todayTimestamp = Math.floor(todayStart.getTime() / 1000);
+          filtered = filtered.filter(thread => thread.lastCallTime >= todayTimestamp);
+          break;
+        case 'week':
+          const weekStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+          const weekTimestamp = Math.floor(weekStart.getTime() / 1000);
+          filtered = filtered.filter(thread => thread.lastCallTime >= weekTimestamp);
+          break;
+        case 'month':
+          const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+          const monthTimestamp = Math.floor(monthStart.getTime() / 1000);
+          filtered = filtered.filter(thread => thread.lastCallTime >= monthTimestamp);
+          break;
+      }
     }
 
-    // Apply duration filter
-    if (durationFilter !== 'all') {
-      filtered = filtered.filter(t => {
-        const callType = getCallType(t);
-        return callType === durationFilter;
-      });
-    }
-
-    // Apply sorting - simplified
-    switch (sortBy) {
-      case 'date':
-        filtered.sort((a, b) => b.startTime - a.startTime);
-        break;
-      case 'duration':
-        filtered.sort((a, b) => b.callDuration - a.callDuration);
-        break;
-      default:
-        // Default sorting by recency
-        filtered.sort((a, b) => b.startTime - a.startTime);
-        break;
-    }
-
-    setFilteredTranscriptions(filtered);
+    setFilteredThreads(filtered);
   };
 
-  const toggleExpandRow = (id: string) => {
-    setExpandedRow(expandedRow === id ? null : id);
+  const openThreadDetail = (thread: ConversationThread) => {
+    console.log('Opening thread detail for:', thread);
+    if (!thread || !thread.transcriptions || thread.transcriptions.length === 0) {
+      console.error('Invalid thread data:', thread);
+      return;
+    }
+    setSelectedThread(thread);
+  };
+
+  const closeThreadDetail = () => {
+    console.log('Closing thread detail');
+    setSelectedThread(null);
+  };
+
+  const openCallDetail = (call: Transcription) => {
+    console.log('Opening call detail for:', call);
+    setSelectedCall(call);
+  };
+
+  const closeCallDetail = () => {
+    console.log('Closing call detail');
+    setSelectedCall(null);
   };
 
   const formatTimestamp = (timestamp: number) => {
+    if (!mounted) return 'Laden...';
+    
     try {
       const date = new Date(timestamp * 1000);
       return date.toLocaleDateString('nl-NL', {
@@ -227,6 +286,8 @@ export default function TranscriptionsPage() {
   };
 
   const getTimeAgo = (timestamp: number) => {
+    if (!mounted) return 'Laden...';
+    
     const now = Math.floor(Date.now() / 1000);
     const diffInSeconds = now - timestamp;
     const diffInMinutes = Math.floor(diffInSeconds / 60);
@@ -242,7 +303,7 @@ export default function TranscriptionsPage() {
     }
   };
 
-  if (loading) {
+  if (!mounted || loading) {
     return (
       <div className="min-h-screen clean-background flex items-center justify-center">
         <div className="text-center">
@@ -261,261 +322,114 @@ export default function TranscriptionsPage() {
       <Header title="Transcripties" showBack />
 
       <div className="px-4 py-4">
-        {/* Header Stats - Enhanced Analytics Style */}
+        {/* Simplified Header Stats - Calm Tech Style */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="grid grid-cols-2 gap-4 mb-6"
+          className="mb-6"
         >
-          <motion.div 
-            whileHover={{ y: -2 }}
-            className="blabla-card hover-lift"
-          >
-            <div className="flex items-center justify-between mb-3" style={{
-              background: 'rgba(99, 102, 241, 0.05)',
-              margin: '-20px -20px 12px -20px',
-              padding: '12px 20px',
-              borderBottom: '1px solid #e2e8f0',
-              borderRadius: '12px 12px 0 0'
-            }}>
-              <Phone size={20} className="text-blue-500" />
-              <motion.button
-                whileTap={{ scale: 0.95 }}
-                onClick={handleRefresh}
-                disabled={refreshing}
-                className="p-1 rounded bg-white/80 hover:bg-white disabled:opacity-50 transition-colors"
-              >
-                <RefreshCw size={14} className={`text-gray-600 ${refreshing ? 'animate-spin' : ''}`} />
-              </motion.button>
+          <div className="flex items-center justify-between blabla-card mb-4">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center">
+                <Phone size={18} className="text-blue-600" />
+              </div>
+              <div>
+                <p className="text-lg font-semibold text-gray-900">
+                  {mounted ? conversationThreads.filter(thread => {
+                    const today = new Date();
+                    const todayStart = Math.floor(new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime() / 1000);
+                    return thread.lastCallTime >= todayStart;
+                  }).length : 0} actieve gesprekken
+                </p>
+                <p className="text-sm text-gray-600">vandaag ontvangen</p>
+              </div>
             </div>
-            <p className="text-2xl font-bold text-gray-900">
-              {transcriptions.filter(t => {
-                const today = new Date();
-                const todayStart = Math.floor(new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime() / 1000);
-                return t.startTime >= todayStart;
-              }).length}
-            </p>
-            <p className="text-sm text-gray-600">Vandaag ontvangen</p>
-          </motion.div>
-          
-          <motion.div 
-            whileHover={{ y: -2 }}
-            className="blabla-card hover-lift"
-          >
-            <div className="flex items-center justify-between mb-3" style={{
-              background: 'rgba(99, 102, 241, 0.05)',
-              margin: '-20px -20px 12px -20px',
-              padding: '12px 20px',
-              borderBottom: '1px solid #e2e8f0',
-              borderRadius: '12px 12px 0 0'
-            }}>
-              <Clock size={20} className="text-green-500" />
-            </div>
-            <p className="text-2xl font-bold text-gray-900">
-              {transcriptions.length > 0 
-                ? formatMinutes(Math.round(transcriptions.reduce((sum, t) => sum + t.callDuration, 0) / transcriptions.length / 60))
-                : '0m'
-              }
-            </p>
-            <p className="text-sm text-gray-600">Gem. transcriptieduur</p>
-          </motion.div>
+            <motion.button
+              whileTap={{ scale: 0.95 }}
+              onClick={handleRefresh}
+              disabled={refreshing}
+              className="p-2 rounded-full bg-gray-50 hover:bg-gray-100 disabled:opacity-50 transition-colors"
+            >
+              <RefreshCw size={16} className={`text-gray-600 ${refreshing ? 'animate-spin' : ''}`} />
+            </motion.button>
+          </div>
         </motion.div>
 
-        {/* Enhanced Filters */}
+        {/* Simplified Filters - Calm Tech Style */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="mb-6"
+          className="mb-6 space-y-4"
         >
-          {/* Advanced Filter Toggle */}
-          <div className="flex justify-between items-center mb-4">
-            <h4 className="font-medium text-gray-900">Filters</h4>
-            <motion.button
-              whileTap={{ scale: 0.95 }}
-              onClick={() => setShowFilters(!showFilters)}
-              className="flex items-center space-x-2 px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-medium text-gray-700 transition-colors"
-            >
-              <Filter size={14} />
-              <span>{showFilters ? 'Minder filters' : 'Meer filters'}</span>
-              {showFilters ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-            </motion.button>
+          {/* Clean Search Bar */}
+          <div className="relative">
+            <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Zoek op naam of nummer..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+            />
           </div>
 
-          {/* Basic Date Filters */}
-          <div className="blabla-card-compact flex space-x-2 mb-4">
+          {/* Essential Time Filters */}
+          <div className="flex space-x-2">
             {[
-              { key: 'all', label: 'Alle' },
-              { key: 'today', label: 'Vandaag' },
-              { key: 'week', label: 'Deze week' },
-              { key: 'month', label: 'Deze maand' },
+              { key: 'all', label: 'Alle', icon: null },
+              { key: 'today', label: 'Vandaag', icon: null },
+              { key: 'week', label: 'Deze week', icon: null },
             ].map((filter) => (
               <motion.button
                 key={filter.key}
                 whileTap={{ scale: 0.95 }}
-                whileHover={{ y: -1 }}
                 onClick={() => setDateFilter(filter.key as any)}
-                className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all duration-200 ${
+                className={`flex-1 py-2.5 px-4 rounded-xl text-sm font-medium transition-all duration-200 ${
                   dateFilter === filter.key
-                    ? 'text-white shadow-sm'
-                    : 'hover:bg-gray-100'
+                    ? 'bg-blue-600 text-white shadow-sm'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }`}
-                style={{
-                  backgroundColor: dateFilter === filter.key ? 'var(--color-primary)' : 'transparent',
-                  color: dateFilter === filter.key ? 'var(--color-text-white)' : 'var(--color-text-secondary)'
-                }}
               >
                 {filter.label}
               </motion.button>
             ))}
           </div>
-          
-          {/* Advanced Filters */}
-          <AnimatePresence>
-            {showFilters && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                className="space-y-4 mb-4"
-              >
-                {/* Extended Date Filters */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Uitgebreide datumfilters</label>
-                  <div className="grid grid-cols-2 gap-2">
-                    {[
-                      { key: 'last3months', label: 'Laatste 3 maanden' },
-                      { key: 'custom', label: 'Aangepast bereik' },
-                    ].map((filter) => (
-                      <motion.button
-                        key={filter.key}
-                        whileTap={{ scale: 0.95 }}
-                        onClick={() => setDateFilter(filter.key as any)}
-                        className={`py-2 px-3 rounded-lg text-sm font-medium transition-all duration-200 ${
-                          dateFilter === filter.key
-                            ? 'text-white shadow-sm'
-                            : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
-                        }`}
-                        style={{
-                          backgroundColor: dateFilter === filter.key ? 'var(--color-primary)' : undefined
-                        }}
-                      >
-                        {filter.label}
-                      </motion.button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Custom Date Range */}
-                {dateFilter === 'custom' && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="grid grid-cols-2 gap-3"
-                  >
-                    <div>
-                      <label className="block text-xs font-medium text-gray-600 mb-1">Van datum</label>
-                      <input
-                        type="date"
-                        value={customStartDate}
-                        onChange={(e) => setCustomStartDate(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-gray-600 mb-1">Tot datum</label>
-                      <input
-                        type="date"
-                        value={customEndDate}
-                        onChange={(e) => setCustomEndDate(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                  </motion.div>
-                )}
-
-                {/* Duration Filter */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Gespreksduur</label>
-                  <div className="grid grid-cols-4 gap-2">
-                    {[
-                      { key: 'all', label: 'Alle' },
-                      { key: 'short', label: 'Kort (<1min)' },
-                      { key: 'medium', label: 'Gemiddeld (1-3min)' },
-                      { key: 'long', label: 'Lang (>3min)' },
-                    ].map((filter) => (
-                      <motion.button
-                        key={filter.key}
-                        whileTap={{ scale: 0.95 }}
-                        onClick={() => setDurationFilter(filter.key as any)}
-                        className={`py-2 px-2 rounded-lg text-xs font-medium transition-all duration-200 ${
-                          durationFilter === filter.key
-                            ? 'text-white shadow-sm'
-                            : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
-                        }`}
-                        style={{
-                          backgroundColor: durationFilter === filter.key ? 'var(--color-primary)' : undefined
-                        }}
-                      >
-                        {filter.label}
-                      </motion.button>
-                    ))}
-                  </div>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-          
-          <div className="relative">
-            <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Zoek in transcripties..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="blabla-input w-full pl-10 pr-4 py-3"
-              style={{
-                borderColor: 'var(--card-border)',
-                fontSize: 'var(--font-size-body)'
-              }}
-            />
-          </div>
         </motion.div>
 
         <div className="mb-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">Recente transcripties</h3>
-          <p className="text-sm text-gray-600">
-            {filteredTranscriptions.length} van {transcriptions.length} transcripties
-          </p>
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-semibold text-gray-900">Conversaties</h3>
+            <span className="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
+              {filteredThreads.length}
+            </span>
+          </div>
         </div>
 
-        {/* Transcriptions List */}
-        <div className="space-y-4">
+        {/* Conversation Threads */}
+        <div className="space-y-3">
           <AnimatePresence>
-            {filteredTranscriptions.map((transcription, index) => (
-              <TranscriptionCard
-                key={transcription.id}
-                transcription={transcription}
-                isExpanded={expandedRow === transcription.id}
-                onToggleExpand={() => toggleExpandRow(transcription.id)}
-                formatTimestamp={formatTimestamp}
-                formatDuration={formatDuration}
+            {filteredThreads.map((thread, index) => (
+              <ConversationThreadCard
+                key={`${thread.phoneNumber}-${thread.customerName}`}
+                thread={thread}
+                onOpen={() => openThreadDetail(thread)}
                 getTimeAgo={getTimeAgo}
                 index={index}
               />
             ))}
           </AnimatePresence>
 
-          {filteredTranscriptions.length === 0 && (
+          {filteredThreads.length === 0 && (
             <div className="text-center py-12">
-              <Phone size={48} className="mx-auto text-gray-300 mb-4" />
+              <MessageCircle size={48} className="mx-auto text-gray-300 mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">
-                Geen transcripties gevonden
+                Geen conversaties gevonden
               </h3>
               <p className="text-gray-600">
                 {searchTerm || dateFilter !== 'all' 
                   ? 'Probeer andere zoekfilters'
-                  : 'Er zijn nog geen voicemail transcripties beschikbaar'
+                  : 'Er zijn nog geen voicemail gesprekken'
                 }
               </p>
             </div>
@@ -523,19 +437,54 @@ export default function TranscriptionsPage() {
         </div>
       </div>
 
+      {/* Floating Action Button */}
+      {mounted && (
+        <motion.div
+          initial={{ scale: 0, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ delay: 0.5 }}
+          className="fixed bottom-24 right-4 z-20"
+        >
+          <motion.button
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
+            className="w-14 h-14 bg-blue-600 rounded-full shadow-lg flex items-center justify-center text-white"
+            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+          >
+            <RefreshCw size={20} />
+          </motion.button>
+        </motion.div>
+      )}
+
+      {/* Thread Detail Modal */}
+      <AnimatePresence>
+        {selectedThread && mounted && (
+          <ThreadDetailModal
+            thread={selectedThread}
+            onClose={closeThreadDetail}
+            formatTimestamp={formatTimestamp}
+            formatDuration={formatDuration}
+            getTimeAgo={getTimeAgo}
+            openCallDetail={openCallDetail}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Individual Call Detail Modal */}
+      <AnimatePresence>
+        {selectedCall && mounted && (
+          <CallDetailModal
+            call={selectedCall}
+            onClose={closeCallDetail}
+            formatTimestamp={formatTimestamp}
+            formatDuration={formatDuration}
+          />
+        )}
+      </AnimatePresence>
+
       <BottomNavigation />
     </div>
   );
-}
-
-interface TranscriptionCardProps {
-  transcription: Transcription;
-  isExpanded: boolean;
-  onToggleExpand: () => void;
-  formatTimestamp: (timestamp: number) => string;
-  formatDuration: (seconds: number) => string;
-  getTimeAgo: (timestamp: number) => string;
-  index: number;
 }
 
 // Helper function to normalize transcription data
@@ -547,112 +496,88 @@ const normalizeTranscriptionData = (transcription: Transcription) => ({
   callType: transcription.callDuration < 60 ? 'Kort' : transcription.callDuration < 180 ? 'Normaal' : 'Lang'
 });
 
-// Transcription Card Header Component
-interface TranscriptionCardHeaderProps {
-  customerName: string;
-  startTime: number;
-  callType: string;
+// Conversation Thread Card Component
+interface ConversationThreadCardProps {
+  thread: ConversationThread;
+  onOpen: () => void;
   getTimeAgo: (timestamp: number) => string;
+  index: number;
 }
 
-function TranscriptionCardHeader({ customerName, startTime, callType, getTimeAgo }: TranscriptionCardHeaderProps) {
+function ConversationThreadCard({ thread, onOpen, getTimeAgo, index }: ConversationThreadCardProps) {
+  // Ensure we have valid thread data
+  if (!thread || !thread.transcriptions || thread.transcriptions.length === 0) {
+    console.error('Invalid thread data in card:', thread);
+    return null;
+  }
+  
+  const lastCall = thread.transcriptions[0] || thread.transcriptions.find(t => t.startTime === thread.lastCallTime);
+  const hasMultipleCalls = thread.totalCalls > 1;
+  
+  const handleClick = () => {
+    console.log('Thread card clicked:', thread);
+    onOpen();
+  };
+  
   return (
-    <div className="flex items-center justify-between mb-4">
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.05 }}
+      whileHover={{ scale: 1.01 }}
+      whileTap={{ scale: 0.99 }}
+      onClick={handleClick}
+      className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 hover:shadow-md transition-all duration-200 cursor-pointer"
+    >
       <div className="flex items-center space-x-3">
-        <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-blue-50 text-blue-600">
-          <Phone size={16} />
+        {/* Customer Avatar */}
+        <div className="relative">
+          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-semibold text-lg">
+            {thread.customerName.charAt(0).toUpperCase()}
+          </div>
+          {hasMultipleCalls && (
+            <div className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-white text-xs font-bold">
+              {thread.totalCalls}
+            </div>
+          )}
         </div>
-        <div>
-          <h3 className="font-semibold text-gray-900">{customerName}</h3>
-          <p className="text-sm text-gray-600">{getTimeAgo(startTime)}</p>
+        
+        {/* Conversation Info */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center justify-between mb-1">
+            <h3 className="font-semibold text-gray-900 text-base truncate">
+              {thread.customerName}
+            </h3>
+            <span className="text-xs text-gray-500 flex-shrink-0">
+              {getTimeAgo(thread.lastCallTime)}
+            </span>
+          </div>
+          
+          <p className="text-sm text-gray-600 truncate mb-2">
+            {thread.phoneNumber}
+          </p>
+          
+          {/* Last Message Preview */}
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-gray-500 truncate flex-1">
+              {lastCall?.transcriptSummary || 'Geen samenvatting beschikbaar'}
+            </p>
+            <div className="flex items-center space-x-2 ml-2 flex-shrink-0">
+              {hasMultipleCalls && (
+                <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full">
+                  {thread.totalCalls} gesprekken
+                </span>
+              )}
+              <ChevronDown size={16} className="text-gray-400 transform -rotate-90" />
+            </div>
+          </div>
         </div>
       </div>
-      <span className="text-xs font-medium px-2 py-1 rounded-full bg-blue-50 text-blue-600">
-        {callType}
-      </span>
-    </div>
+    </motion.div>
   );
 }
 
-// Call Details Component
-interface TranscriptionDetailsProps {
-  phoneNumber: string;
-  duration: number;
-  companyName?: string;
-  formatDuration: (seconds: number) => string;
-}
-
-function TranscriptionDetails({ phoneNumber, duration, companyName, formatDuration }: TranscriptionDetailsProps) {
-  return (
-    <div className="grid grid-cols-2 gap-4 p-3 rounded-lg mb-4 bg-gray-50">
-      <div>
-        <span className="text-xs text-gray-500">Telefoonnummer</span>
-        <p className="font-medium text-gray-900 font-mono text-sm">{phoneNumber}</p>
-      </div>
-      <div>
-        <span className="text-xs text-gray-500">Gespreksduur</span>
-        <p className="font-medium text-gray-900">{formatDuration(duration)}</p>
-      </div>
-      {companyName && (
-        <div className="col-span-2">
-          <span className="text-xs text-gray-500">Bedrijf</span>
-          <p className="font-medium text-gray-900">{companyName}</p>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// Summary Component
-interface TranscriptionSummaryProps {
-  summary: string;
-}
-
-function TranscriptionSummary({ summary }: TranscriptionSummaryProps) {
-  if (!summary) return null;
-
-  return (
-    <div className="mb-4">
-      <h4 className="text-sm font-medium text-gray-900 mb-2">Samenvatting</h4>
-      <p className="text-sm text-gray-600 leading-relaxed">
-        {summary.length > 120 ? summary.substring(0, 120) + '...' : summary}
-      </p>
-    </div>
-  );
-}
-
-// Actions Component
-interface TranscriptionActionsProps {
-  phoneNumber: string;
-  isExpanded: boolean;
-  onToggleExpand: () => void;
-}
-
-function TranscriptionActions({ phoneNumber, isExpanded, onToggleExpand }: TranscriptionActionsProps) {
-  return (
-    <div className="flex space-x-2">
-      <motion.button
-        whileTap={{ scale: 0.95 }}
-        whileHover={{ y: -1 }}
-        className="blabla-button-primary flex-1 flex items-center justify-center space-x-2"
-        onClick={() => window.open(`tel:${phoneNumber}`, '_self')}
-      >
-        <Phone size={14} />
-        <span>Bellen</span>
-      </motion.button>
-      <motion.button
-        whileTap={{ scale: 0.95 }}
-        whileHover={{ y: -1 }}
-        onClick={onToggleExpand}
-        className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-all duration-200"
-      >
-        <ChevronDown size={16} className={`text-gray-600 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
-      </motion.button>
-    </div>
-  );
-}
-
-// Transcript Message Component
+// Transcript Message Component for Modal Use
 interface TranscriptMessageProps {
   message: {
     role: string;
@@ -666,29 +591,33 @@ function TranscriptMessage({ message, formatDuration }: TranscriptMessageProps) 
   const isAgent = message.role === 'agent';
   
   return (
-    <div className={`flex ${isAgent ? 'justify-start' : 'justify-end'} mb-3`}>
-      <div className={`max-w-[80%] p-3 rounded-xl ${
+    <div className={`flex ${isAgent ? 'justify-start' : 'justify-end'} mb-4`}>
+      <div className={`max-w-[85%] ${
         isAgent 
-          ? 'bg-blue-50 border border-blue-200 rounded-bl-sm' 
-          : 'bg-green-50 border border-green-200 rounded-br-sm'
-      }`}>
-        <div className={`flex items-center mb-1 ${isAgent ? 'flex-row' : 'flex-row-reverse'}`}>
-          <div className={`w-2 h-2 rounded-full ${
-            isAgent ? 'bg-blue-500 mr-2' : 'bg-green-500 ml-2'
-          }`}></div>
-          <span className="text-xs font-medium text-gray-600">
-            {isAgent ? 'Agent' : 'Beller'}
-          </span>
-          {message.timeInCallSecs !== undefined && (
-            <span className={`text-xs text-gray-500 ${
-              isAgent ? 'ml-auto' : 'mr-auto'
+          ? 'bg-white border border-blue-200 shadow-sm' 
+          : 'bg-blue-600 text-white shadow-sm'
+      } p-3 rounded-2xl ${isAgent ? 'rounded-bl-md' : 'rounded-br-md'}`}>
+        <div className={`flex items-center mb-2 ${isAgent ? 'justify-start' : 'justify-end'}`}>
+          <div className="flex items-center space-x-2">
+            <div className={`w-1.5 h-1.5 rounded-full ${
+              isAgent ? 'bg-blue-500' : 'bg-blue-200'
+            }`}></div>
+            <span className={`text-xs font-medium ${
+              isAgent ? 'text-blue-700' : 'text-blue-100'
             }`}>
-              {formatDuration(message.timeInCallSecs)}
+              {isAgent ? 'VoicemailAI' : 'Beller'}
             </span>
-          )}
+            {message.timeInCallSecs !== undefined && (
+              <span className={`text-xs ${
+                isAgent ? 'text-gray-500' : 'text-blue-200'
+              }`}>
+                {formatDuration(message.timeInCallSecs)}
+              </span>
+            )}
+          </div>
         </div>
-        <p className={`text-sm text-gray-800 leading-relaxed ${
-          isAgent ? 'text-left' : 'text-right'
+        <p className={`text-sm leading-relaxed ${
+          isAgent ? 'text-gray-800' : 'text-white'
         }`}>
           {message.message}
         </p>
@@ -697,120 +626,284 @@ function TranscriptMessage({ message, formatDuration }: TranscriptMessageProps) 
   );
 }
 
-// Expanded Content Component
-interface TranscriptionExpandedProps {
-  transcription: Transcription;
+// Thread Detail Modal Component
+interface ThreadDetailModalProps {
+  thread: ConversationThread;
+  onClose: () => void;
   formatTimestamp: (timestamp: number) => string;
   formatDuration: (seconds: number) => string;
+  getTimeAgo: (timestamp: number) => string;
+  openCallDetail: (call: Transcription) => void;
 }
 
-function TranscriptionExpanded({ transcription, formatTimestamp, formatDuration }: TranscriptionExpandedProps) {
+function ThreadDetailModal({ thread, onClose, formatTimestamp, formatDuration, getTimeAgo, openCallDetail }: ThreadDetailModalProps) {
+  // Ensure we have valid transcriptions
+  if (!thread || !thread.transcriptions || thread.transcriptions.length === 0) {
+    console.error('No transcriptions found for thread:', thread);
+    return (
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center"
+        onClick={onClose}
+      >
+        <div className="bg-white rounded-xl p-6 m-4 max-w-sm">
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">Geen gespreksdata</h3>
+          <p className="text-gray-600 mb-4">Er zijn geen transcripties beschikbaar voor dit gesprek.</p>
+          <button 
+            onClick={onClose}
+            className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg"
+          >
+            Sluiten
+          </button>
+        </div>
+      </motion.div>
+    );
+  }
+  
   return (
     <motion.div
-      initial={{ opacity: 0, height: 0 }}
-      animate={{ opacity: 1, height: 'auto' }}
-      exit={{ opacity: 0, height: 0 }}
-      className="border-t border-gray-100 mt-4 pt-4"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center"
+      onClick={onClose}
     >
-      <div className="space-y-4">
-        {/* Extended Details */}
-        <div className="grid grid-cols-2 gap-4 p-3 rounded-lg bg-gray-50">
-          <div>
-            <span className="text-xs text-gray-500">Datum & Tijd</span>
-            <p className="font-medium text-gray-900">{formatTimestamp(transcription.startTime)}</p>
-          </div>
-          <div>
-            <span className="text-xs text-gray-500">Richting</span>
-            <p className="font-medium text-gray-900">
-              {transcription.callDirection === 'inbound' ? 'Inkomend' : 'Uitgaand'}
-            </p>
-          </div>
-        </div>
-
-        {/* Full Transcript */}
-        <div>
+      <motion.div
+        initial={{ y: '100%' }}
+        animate={{ y: 0 }}
+        exit={{ y: '100%' }}
+        transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+        onClick={(e) => e.stopPropagation()}
+        className="bg-white rounded-t-3xl w-full max-w-lg max-h-[90vh] flex flex-col"
+      >
+        {/* Modal Header */}
+        <div className="p-4 border-b border-gray-100 bg-gray-50 rounded-t-3xl">
           <div className="flex items-center justify-between mb-3">
-            <h4 className="font-semibold text-gray-900 flex items-center">
-              <FileText size={16} className="mr-2 text-gray-400" />
-              Volledige transcriptie
-            </h4>
-          </div>
-          <div className="max-h-64 overflow-y-auto rounded-lg p-4 border border-slate-200 bg-gray-50">
-            {Array.isArray(transcription.transcript) && transcription.transcript.length > 0 ? (
-              <div className="space-y-3">
-                {transcription.transcript.map((message, idx) => (
-                  message.message && (
-                    <TranscriptMessage 
-                      key={idx} 
-                      message={message} 
-                      formatDuration={formatDuration} 
-                    />
-                  )
-                ))}
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-semibold">
+                {thread.customerName.charAt(0).toUpperCase()}
               </div>
-            ) : (
-              <p className="text-sm text-gray-500 text-center py-8">
-                Geen gedetailleerde transcriptie beschikbaar
-              </p>
-            )}
+              <div>
+                <h2 className="font-semibold text-gray-900">{thread.customerName}</h2>
+                <p className="text-sm text-gray-600">{thread.phoneNumber}</p>
+              </div>
+            </div>
+            <motion.button
+              whileTap={{ scale: 0.9 }}
+              onClick={onClose}
+              className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center"
+            >
+              <ChevronDown size={16} className="text-gray-600" />
+            </motion.button>
+          </div>
+          
+          {/* Quick Actions */}
+          <div className="flex space-x-2">
+            <motion.button
+              whileTap={{ scale: 0.95 }}
+              className="flex-1 bg-blue-600 text-white py-2.5 px-4 rounded-xl text-sm font-medium flex items-center justify-center space-x-2"
+              onClick={() => window.open(`tel:${thread.phoneNumber}`, '_self')}
+            >
+              <Phone size={14} />
+              <span>Bellen</span>
+            </motion.button>
+            <motion.button
+              whileTap={{ scale: 0.95 }}
+              className="flex-1 bg-green-600 text-white py-2.5 px-4 rounded-xl text-sm font-medium flex items-center justify-center space-x-2"
+              onClick={() => window.open(`https://wa.me/${thread.phoneNumber.replace(/[^0-9]/g, '')}`, '_blank')}
+            >
+              <MessageCircle size={14} />
+              <span>WhatsApp</span>
+            </motion.button>
           </div>
         </div>
-      </div>
+        
+        {/* Call History List - Now the main content */}
+        <div className="flex-1 overflow-y-auto p-4" style={{ WebkitOverflowScrolling: 'touch' }}>
+          <div className="space-y-3">
+            {thread.transcriptions.map((call, index) => (
+              <motion.div
+                key={call.id}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => openCallDetail(call)}
+                className="p-4 rounded-xl border border-gray-200 bg-gray-50 hover:bg-gray-100 transition-all duration-200 cursor-pointer"
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
+                      <span className="text-blue-600 text-sm">
+                        {call.callDirection === 'inbound' ? '📞' : '📱'}
+                      </span>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">
+                        {formatTimestamp(call.startTime)}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {call.callDirection === 'inbound' ? 'Inkomend gesprek' : 'Uitgaand gesprek'} • {formatDuration(call.callDuration)}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-xs text-gray-500 bg-white px-2 py-1 rounded-full">
+                      {getTimeAgo(call.startTime)}
+                    </span>
+                  </div>
+                </div>
+                {call.transcriptSummary && (
+                  <p className="text-sm text-gray-600 leading-relaxed">
+                    {call.transcriptSummary.length > 120 
+                      ? call.transcriptSummary.substring(0, 120) + '...' 
+                      : call.transcriptSummary
+                    }
+                  </p>
+                )}
+                <div className="flex items-center justify-between mt-3">
+                  <span className="text-xs text-blue-600 font-medium">Tap voor details →</span>
+                  <div className="w-4 h-4 rounded-full bg-blue-600 flex items-center justify-center">
+                    <span className="text-white text-xs">›</span>
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+        
+      </motion.div>
     </motion.div>
   );
 }
 
-// Main Transcription Card Component (now much cleaner)
-function TranscriptionCard({
-  transcription,
-  isExpanded,
-  onToggleExpand,
-  formatTimestamp,
-  formatDuration,
-  getTimeAgo,
-  index
-}: TranscriptionCardProps) {
-  const normalizedData = normalizeTranscriptionData(transcription);
+// Individual Call Detail Modal Component
+interface CallDetailModalProps {
+  call: Transcription;
+  onClose: () => void;
+  formatTimestamp: (timestamp: number) => string;
+  formatDuration: (seconds: number) => string;
+}
+
+function CallDetailModal({ call, onClose, formatTimestamp, formatDuration }: CallDetailModalProps) {
+  if (!call) {
+    return null;
+  }
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.05 }}
-      whileHover={{ y: -2 }}
-      className="blabla-card hover-lift mb-4"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center"
+      onClick={onClose}
     >
-      <TranscriptionCardHeader
-        customerName={normalizedData.customerName}
-        startTime={transcription.startTime}
-        callType={normalizedData.callType}
-        getTimeAgo={getTimeAgo}
-      />
-      
-      <TranscriptionDetails
-        phoneNumber={normalizedData.phoneNumber}
-        duration={transcription.callDuration}
-        companyName={normalizedData.companyName}
-        formatDuration={formatDuration}
-      />
-      
-      <TranscriptionSummary summary={normalizedData.summary} />
-      
-      <TranscriptionActions
-        phoneNumber={normalizedData.phoneNumber}
-        isExpanded={isExpanded}
-        onToggleExpand={onToggleExpand}
-      />
-
-      <AnimatePresence>
-        {isExpanded && (
-          <TranscriptionExpanded
-            transcription={transcription}
-            formatTimestamp={formatTimestamp}
-            formatDuration={formatDuration}
-          />
-        )}
-      </AnimatePresence>
+      <motion.div
+        initial={{ y: '100%' }}
+        animate={{ y: 0 }}
+        exit={{ y: '100%' }}
+        transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+        onClick={(e) => e.stopPropagation()}
+        className="bg-white rounded-t-3xl w-full max-w-lg max-h-[90vh] flex flex-col"
+      >
+        {/* Modal Header */}
+        <div className="p-4 border-b border-gray-100 bg-gray-50 rounded-t-3xl">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white">
+                {call.callDirection === 'inbound' ? '📞' : '📱'}
+              </div>
+              <div>
+                <h2 className="font-semibold text-gray-900">
+                  {call.callDirection === 'inbound' ? 'Inkomend Gesprek' : 'Uitgaand Gesprek'}
+                </h2>
+                <p className="text-sm text-gray-600">{formatTimestamp(call.startTime)}</p>
+              </div>
+            </div>
+            <motion.button
+              whileTap={{ scale: 0.9 }}
+              onClick={onClose}
+              className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center"
+            >
+              <ChevronDown size={16} className="text-gray-600" />
+            </motion.button>
+          </div>
+          
+          {/* Call Info Strip */}
+          <div className="flex items-center justify-between text-sm bg-white rounded-lg p-3">
+            <div className="flex items-center space-x-4">
+              <div className="text-center">
+                <p className="text-xs text-gray-500 mb-1">Duur</p>
+                <p className="font-medium text-gray-900">{formatDuration(call.callDuration)}</p>
+              </div>
+              <div className="w-px h-8 bg-gray-200"></div>
+              <div className="text-center">
+                <p className="text-xs text-gray-500 mb-1">Status</p>
+                <p className="font-medium text-green-600">Voltooid</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        {/* Call Content */}
+        <div className="flex-1 overflow-y-auto p-4" style={{ WebkitOverflowScrolling: 'touch' }}>
+          <div className="space-y-6">
+            {/* Summary */}
+            {call.transcriptSummary && (
+              <div>
+                <div className="flex items-center mb-3">
+                  <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center mr-2">
+                    <span className="text-blue-600 text-xs">✨</span>
+                  </div>
+                  <h3 className="font-medium text-gray-900">Samenvatting</h3>
+                </div>
+                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-4 border border-blue-100">
+                  <p className="text-sm text-blue-900 leading-relaxed">
+                    {call.transcriptSummary}
+                  </p>
+                </div>
+              </div>
+            )}
+            
+            {/* Full Transcript */}
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center">
+                  <div className="w-6 h-6 bg-purple-100 rounded-full flex items-center justify-center mr-2">
+                    <FileText size={12} className="text-purple-600" />
+                  </div>
+                  <h3 className="font-medium text-gray-900">Volledig gesprek</h3>
+                </div>
+                {Array.isArray(call.transcript) && call.transcript.length > 0 && (
+                  <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
+                    {call.transcript.filter(m => m.message).length} berichten
+                  </span>
+                )}
+              </div>
+              <div className="bg-gray-50 rounded-xl p-4 min-h-[300px]" style={{ WebkitOverflowScrolling: 'touch' }}>
+                {Array.isArray(call.transcript) && call.transcript.length > 0 ? (
+                  <div className="space-y-4">
+                    {call.transcript.map((message, idx) => (
+                      message.message && (
+                        <TranscriptMessage
+                          key={idx}
+                          message={message}
+                          formatDuration={formatDuration}
+                        />
+                      )
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-12 text-gray-500">
+                    <FileText size={32} className="mx-auto mb-3 opacity-30" />
+                    <p className="text-sm font-medium">Geen transcriptie beschikbaar</p>
+                    <p className="text-xs text-gray-400 mt-1">Dit gesprek heeft geen gedetailleerde transcriptie</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </motion.div>
     </motion.div>
   );
 }
