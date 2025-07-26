@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Phone, Clock, TrendingUp, Calendar, Settings, User, BarChart3, PlayCircle, PhoneForwarded, PhoneOff, PhoneMissed, X, Loader2 } from 'lucide-react';
+import { Phone, Clock, TrendingUp, Calendar, Settings, User, BarChart3, PlayCircle, PhoneForwarded, PhoneOff, PhoneMissed, X, Loader2, Bell, BellRing, Trash2, Check, CheckCircle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'react-toastify';
 import Header from '@/components/mobile-v3/Header';
@@ -10,39 +10,20 @@ import BottomNavigation from '@/components/mobile-v3/BottomNavigation';
 import { useAuth } from '@/lib/hooks/useAuth';
 import AuthDebugInfo from '@/components/mobile-v3/AuthDebugInfo';
 import AuthStatus from '@/components/mobile-v3/AuthStatus';
+import { StatisticsService, DashboardStats, RecentActivity } from '@/lib/services/statisticsService';
 
-interface DashboardStats {
-  todayVoicemails: number;
-  timeSaved: number;
-  weeklyTrend: number;
-  totalTranscriptions: number;
-  unreadCount: number;
-  avgDuration: number;
-}
-
-interface RecentActivity {
+interface Notification {
   id: string;
-  type: 'voicemail' | 'call' | 'transcription' | 'insight';
+  type: 'new_voicemail' | 'transcription_ready' | 'system_update' | 'forwarding_status' | 'missed_call';
   title: string;
-  subtitle: string;
-  time: string;
+  message: string;
+  timestamp: number;
+  read: boolean;
   priority: 'high' | 'medium' | 'low';
+  actionUrl?: string;
+  metadata?: any;
 }
 
-interface Transcription {
-  id: string;
-  customerName: string;
-  externalNumber: string;
-  startTime: number;
-  callDuration: number;
-  transcriptSummary: string;
-  transcript: Array<{
-    role: string;
-    message: string;
-    timeInCallSecs?: number;
-  }>;
-  client_id?: string;
-}
 
 // Get forwarding number from environment
 const getForwardingNumber = () => {
@@ -96,7 +77,11 @@ export default function MobileHomePage() {
   });
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
   const [dataLoading, setDataLoading] = useState(false);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [hasNewNotifications, setHasNewNotifications] = useState(false);
   const [forwardingStatus, setForwardingStatus] = useState<{[key: string]: {status: string, lastChecked: string}}>({});
+  const [activeForwardingType, setActiveForwardingType] = useState<string | null>(null);
   const [loadingStates, setLoadingStates] = useState<{[key: string]: boolean}>({});
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [pendingStatusCheck, setPendingStatusCheck] = useState<{type: string, statusCode: string} | null>(null);
@@ -116,57 +101,9 @@ export default function MobileHomePage() {
   const fetchRealData = async (userId: string) => {
     setDataLoading(true);
     try {
-      console.log('Fetching transcriptions for user:', userId);
-      const response = await fetch(`/api/transcriptions?clientId=${userId}&t=${new Date().getTime()}`);
-      
-      if (!response.ok) {
-        console.error('API response not ok:', response.status, response.statusText);
-        throw new Error(`Failed to fetch data: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      const transcriptions: Transcription[] = data.transcriptions || [];
-      
-      console.log('Fetched transcriptions:', transcriptions.length);
-      
-      // Calculate real stats
-      const now = new Date();
-      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      const todayTimestamp = Math.floor(todayStart.getTime() / 1000);
-      
-      const todayTranscriptions = transcriptions.filter(t => t.startTime >= todayTimestamp);
-      const totalDuration = transcriptions.reduce((sum, t) => sum + (t.callDuration || 0), 0);
-      const avgDuration = transcriptions.length > 0 ? Math.round(totalDuration / transcriptions.length) : 0;
-      
-      // Calculate time saved (assuming 2 minutes saved per transcription)
-      const timeSavedMinutes = transcriptions.length * 2;
-      
-      setStats({
-        todayVoicemails: todayTranscriptions.length,
-        timeSaved: timeSavedMinutes,
-        weeklyTrend: 12, // Mock trend for now
-        totalTranscriptions: transcriptions.length,
-        unreadCount: transcriptions.length, // All are considered unread for now
-        avgDuration
-      });
-      
-      // Generate recent activity from real data
-      const recentActivities: RecentActivity[] = transcriptions
-        .slice(0, 3)
-        .map((t, index) => {
-          const timeAgo = formatTimeAgo(t.startTime);
-          return {
-            id: t.id,
-            type: 'transcription' as const,
-            title: 'Voicemail transcriptie',
-            subtitle: `${t.customerName || 'Onbekende beller'} - ${t.transcriptSummary?.substring(0, 50) || 'Transcriptie beschikbaar'}...`,
-            time: timeAgo,
-            priority: index === 0 ? 'high' : index === 1 ? 'medium' : 'low'
-          };
-        });
-      
-      setRecentActivity(recentActivities);
-      
+      const { dashboardStats, recentActivity } = await StatisticsService.getUserStatistics(userId);
+      setStats(dashboardStats);
+      setRecentActivity(recentActivity);
     } catch (error) {
       console.error('Error fetching real data:', error);
       // Show more specific error information
@@ -188,25 +125,12 @@ export default function MobileHomePage() {
     }
   };
 
-    const formatTimeAgo = (timestamp: number) => {
-      const now = Math.floor(Date.now() / 1000);
-      const diffInSeconds = now - timestamp;
-      const diffInMinutes = Math.floor(diffInSeconds / 60);
-      const diffInHours = Math.floor(diffInMinutes / 60);
-      const diffInDays = Math.floor(diffInHours / 24);
-      
-      if (diffInMinutes < 60) {
-        return `${diffInMinutes} min geleden`;
-      } else if (diffInHours < 24) {
-        return `${diffInHours} uur geleden`;
-      } else {
-        return `${diffInDays} dag${diffInDays === 1 ? '' : 'en'} geleden`;
-      }
-    };
 
   // Load forwarding status from localStorage with expiration check
   useEffect(() => {
     const savedStatus = localStorage.getItem('voicemail_forwarding_status');
+    const savedActiveType = localStorage.getItem('voicemail_active_forwarding_type');
+    
     if (savedStatus) {
       try {
         const parsedStatus = JSON.parse(savedStatus);
@@ -231,10 +155,15 @@ export default function MobileHomePage() {
         console.error('Error parsing forwarding status:', error);
       }
     }
+    
+    // Load active forwarding type
+    if (savedActiveType) {
+      setActiveForwardingType(savedActiveType);
+    }
   }, []);
 
-  // Update forwarding status
-  const updateForwardingStatus = (type: string, status: string) => {
+  // Update forwarding status with mutual exclusivity
+  const updateForwardingStatus = (type: string, status: string, isActivation: boolean = false) => {
     const newStatus = {
       ...forwardingStatus,
       [type]: {
@@ -246,7 +175,70 @@ export default function MobileHomePage() {
     setForwardingStatus(newStatus);
     localStorage.setItem('voicemail_forwarding_status', JSON.stringify(newStatus));
     
-    toast.success(`Doorschakeling status bijgewerkt: ${getStatusLabel(status)}`);
+    // Handle mutual exclusivity for forwarding types
+    if (isActivation && status === 'active' && type !== 'disable') {
+      // Set this as the active forwarding type
+      setActiveForwardingType(type);
+      localStorage.setItem('voicemail_active_forwarding_type', type);
+      
+      // Deactivate other forwarding types
+      const otherTypes = ['unconditional', 'busy', 'unanswered'].filter(t => t !== type);
+      otherTypes.forEach(otherType => {
+        if (forwardingStatus[otherType]?.status === 'active') {
+          const deactivatedStatus = {
+            ...newStatus,
+            [otherType]: {
+              status: 'inactive',
+              lastChecked: new Date().toISOString()
+            }
+          };
+          setForwardingStatus(deactivatedStatus);
+          localStorage.setItem('voicemail_forwarding_status', JSON.stringify(deactivatedStatus));
+        }
+      });
+      
+      toast.success(`${getDoorschakelLabel(type)} geactiveerd - andere types gedeactiveerd`);
+    } else if (type === 'disable' && status === 'active') {
+      // Disable all forwarding
+      setActiveForwardingType(null);
+      localStorage.removeItem('voicemail_active_forwarding_type');
+      toast.success('Alle doorschakelingen uitgeschakeld');
+    } else {
+      toast.success(`Doorschakeling status bijgewerkt: ${getStatusLabel(status)}`);
+    }
+  };
+  
+  // Helper function to get doorschakeling label
+  const getDoorschakelLabel = (type: string): string => {
+    switch (type) {
+      case 'unconditional': return 'Altijd doorschakelen';
+      case 'busy': return 'Bezet doorschakelen';
+      case 'unanswered': return 'Niet opgenomen doorschakelen';
+      case 'disable': return 'Uitschakelen';
+      default: return 'Doorschakeling';
+    }
+  };
+
+  // Get enhanced button styling based on active state
+  const getButtonStyling = (actionType: string, currentStatus: string) => {
+    const isActive = activeForwardingType === actionType && currentStatus === 'active';
+    const isDisabled = actionType === 'disable';
+    
+    if (isActive && !isDisabled) {
+      return {
+        buttonClass: 'relative blabla-card-compact hover-lift flex flex-col items-center border-2 border-green-400 bg-green-50',
+        iconColorClass: 'bg-green-500',
+        textColor: 'var(--color-text-primary)'
+      };
+    }
+    
+    return {
+      buttonClass: 'relative blabla-card-compact hover-lift flex flex-col items-center',
+      iconColorClass: actionType === 'unconditional' ? 'bg-blue-500' :
+                      actionType === 'busy' ? 'bg-orange-500' :
+                      actionType === 'unanswered' ? 'bg-purple-500' : 'bg-gray-500',
+      textColor: 'var(--color-text-primary)'
+    };
   };
 
   // Set loading state for a specific action
@@ -334,7 +326,7 @@ export default function MobileHomePage() {
   // Handle status confirmation from modal
   const handleStatusConfirmation = (isActive: boolean) => {
     if (pendingStatusCheck) {
-      updateForwardingStatus(pendingStatusCheck.type, isActive ? 'active' : 'inactive');
+      updateForwardingStatus(pendingStatusCheck.type, isActive ? 'active' : 'inactive', isActive);
       setShowStatusModal(false);
       setPendingStatusCheck(null);
     }
@@ -421,6 +413,190 @@ export default function MobileHomePage() {
 
   // Enhanced name resolution - try to get real name from profile
   const [profileName, setProfileName] = useState<string>('');
+
+  // Real-time notification polling
+  useEffect(() => {
+    let notificationInterval: NodeJS.Timeout;
+
+    const fetchNotifications = async () => {
+      if (!user?.id) return;
+      
+      try {
+        const response = await fetch(`/api/notifications?userId=${user.id}`);
+        if (response.ok) {
+          const data = await response.json();
+          const newNotifications = data.notifications || [];
+          
+          // Check for new unread notifications
+          const hasUnread = newNotifications.some((n: Notification) => !n.read);
+          setHasNewNotifications(hasUnread);
+          
+          setNotifications(newNotifications);
+        }
+      } catch (error) {
+        console.error('Error fetching notifications:', error);
+      }
+    };
+
+    const startNotificationPolling = () => {
+      fetchNotifications(); // Initial fetch
+      notificationInterval = setInterval(fetchNotifications, 30000); // Poll every 30 seconds
+    };
+
+    if (user?.id) {
+      startNotificationPolling();
+    }
+
+    return () => {
+      if (notificationInterval) {
+        clearInterval(notificationInterval);
+      }
+    };
+  }, [user?.id]);
+
+  // Generate mock notifications for demonstration
+  useEffect(() => {
+    if (user?.id && notifications.length === 0) {
+      const mockNotifications: Notification[] = [
+        {
+          id: 'notif-1',
+          type: 'new_voicemail',
+          title: 'Nieuwe voicemail',
+          message: 'Je hebt een nieuwe voicemail ontvangen van +31 6 12345678',
+          timestamp: Date.now() - 300000, // 5 minutes ago
+          read: false,
+          priority: 'high',
+          actionUrl: '/mobile-v3/transcriptions'
+        },
+        {
+          id: 'notif-2',
+          type: 'transcription_ready',
+          title: 'Transcriptie klaar',
+          message: 'De transcriptie van je gesprek met John Doe is beschikbaar',
+          timestamp: Date.now() - 900000, // 15 minutes ago
+          read: false,
+          priority: 'medium',
+          actionUrl: '/mobile-v3/transcriptions'
+        },
+        {
+          id: 'notif-3',
+          type: 'forwarding_status',
+          title: 'Doorschakeling status',
+          message: 'Je doorschakeling naar voicemail is succesvol geactiveerd',
+          timestamp: Date.now() - 3600000, // 1 hour ago
+          read: true,
+          priority: 'low'
+        }
+      ];
+      
+      setNotifications(mockNotifications);
+      setHasNewNotifications(mockNotifications.some(n => !n.read));
+    }
+  }, [user?.id, notifications.length]);
+
+  // Mark notification as read
+  const markNotificationAsRead = async (notificationId: string) => {
+    try {
+      await fetch('/api/notifications/mark-read', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ notificationId })
+      });
+      
+      setNotifications(prev => 
+        prev.map(n => n.id === notificationId ? { ...n, read: true } : n)
+      );
+      
+      // Update has new notifications flag
+      const stillHasUnread = notifications.some(n => n.id !== notificationId && !n.read);
+      setHasNewNotifications(stillHasUnread);
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+    }
+  };
+
+  // Mark all notifications as read
+  const markAllNotificationsAsRead = async () => {
+    try {
+      await fetch('/api/notifications/mark-all-read', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user?.id })
+      });
+      
+      setNotifications(prev => 
+        prev.map(n => ({ ...n, read: true }))
+      );
+      setHasNewNotifications(false);
+    } catch (error) {
+      console.error('Error marking all notifications as read:', error);
+    }
+  };
+
+  // Delete notification
+  const deleteNotification = async (notificationId: string) => {
+    try {
+      await fetch('/api/notifications/delete', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ notificationId })
+      });
+      
+      setNotifications(prev => prev.filter(n => n.id !== notificationId));
+    } catch (error) {
+      console.error('Error deleting notification:', error);
+    }
+  };
+
+  // Get notification icon
+  const getNotificationIcon = (type: string) => {
+    switch (type) {
+      case 'new_voicemail': return Phone;
+      case 'transcription_ready': return PlayCircle;
+      case 'missed_call': return PhoneMissed;
+      case 'forwarding_status': return PhoneForwarded;
+      case 'system_update': return Settings;
+      default: return Bell;
+    }
+  };
+
+  // Get notification color
+  const getNotificationColor = (priority: string, read: boolean) => {
+    if (read) return 'bg-gray-100 text-gray-600';
+    
+    switch (priority) {
+      case 'high': return 'bg-red-100 text-red-600';
+      case 'medium': return 'bg-blue-100 text-blue-600';
+      default: return 'bg-gray-100 text-gray-600';
+    }
+  };
+
+  // Handle notification click
+  const handleNotificationClick = (notification: Notification) => {
+    markNotificationAsRead(notification.id);
+    
+    if (notification.actionUrl) {
+      router.push(notification.actionUrl);
+    }
+    
+    setShowNotifications(false);
+  };
+
+  // Format notification time
+  const formatNotificationTime = (timestamp: number) => {
+    const now = Date.now();
+    const diffInMinutes = Math.floor((now - timestamp) / 60000);
+    const diffInHours = Math.floor(diffInMinutes / 60);
+    const diffInDays = Math.floor(diffInHours / 24);
+    
+    if (diffInMinutes < 60) {
+      return `${diffInMinutes}m`;
+    } else if (diffInHours < 24) {
+      return `${diffInHours}u`;
+    } else {
+      return `${diffInDays}d`;
+    }
+  };
   
   useEffect(() => {
     const fetchProfileName = async () => {
@@ -537,8 +713,9 @@ export default function MobileHomePage() {
     <div className="h-full" style={{ background: 'transparent' }}>
       <Header 
         title="VoicemailAI" 
-        showNotifications={stats.unreadCount > 0}
+        showNotifications={hasNewNotifications}
         showSettings={false}
+        onNotificationClick={() => setShowNotifications(true)}
       />
 
       <div className="px-4 py-6 pb-24">
@@ -686,17 +863,19 @@ export default function MobileHomePage() {
             Snelle acties
           </h3>
           
-          {/* Bulk Status Check Button */}
+          {/* Enhanced Bulk Status Check Button */}
           <motion.button
             whileTap={{ scale: 0.95 }}
             onClick={checkAllForwardingStatus}
-            className="mb-4 flex items-center justify-center space-x-2 px-4 py-3 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors"
+            className="mb-4 flex items-center justify-center space-x-2 px-4 py-3 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-xl transition-colors"
+            aria-label="Controleer de status van alle doorschakelingen"
+            title="Controleert systematisch de status van alle doorschakeling types"
           >
-            <BarChart3 size={16} className="text-gray-600" />
-            <span className="text-sm font-medium text-gray-700">Alle statussen controleren</span>
+            <BarChart3 size={16} className="text-blue-600" />
+            <span className="text-sm font-medium text-blue-700">Alle statussen controleren</span>
           </motion.button>
           
-          <div className="grid grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 gap-3">
             {doorschakelActies.map((action, index) => {
               const Icon = action.icon;
               const currentStatus = forwardingStatus[action.type]?.status || 'unknown';
@@ -704,16 +883,26 @@ export default function MobileHomePage() {
               
               const handleActivate = async () => {
                 setActionLoading(action.type, true);
+                
+                // Provide immediate feedback
+                toast.info(`${getDoorschakelLabel(action.type)} wordt geactiveerd...`);
+                
                 await openDialer(action.ussdCode);
                 
-                // After 3 seconds, offer status check
+                // After 3 seconds, offer status check with better messaging
                 setTimeout(() => {
+                  const actionLabel = getDoorschakelLabel(action.type);
                   const shouldCheck = window.confirm(
-                    'Doorschakeling uitgevoerd!\n\nWil je de status controleren?'
+                    `✅ ${actionLabel} commando verzonden!\n\n` +
+                    `Wil je de status controleren om te bevestigen dat de doorschakeling actief is?\n\n` +
+                    `💡 Tip: Lang indrukken controleert alleen de status zonder te activeren.`
                   );
                   
                   if (shouldCheck) {
                     checkForwardingStatus(action.type, action.statusCode);
+                  } else {
+                    // Assume activation was successful for UX
+                    updateForwardingStatus(action.type, 'active', true);
                   }
                   setActionLoading(action.type, false);
                 }, 3000);
@@ -722,6 +911,9 @@ export default function MobileHomePage() {
               const handleLongPress = () => {
                 checkForwardingStatus(action.type, action.statusCode);
               };
+              
+              const buttonStyling = getButtonStyling(action.type, currentStatus);
+              const isActive = activeForwardingType === action.type && currentStatus === 'active';
               
               return (
                 <motion.button
@@ -734,14 +926,18 @@ export default function MobileHomePage() {
                     handleLongPress();
                   }}
                   disabled={isLoading}
-                  className="relative blabla-card-compact hover-lift flex flex-col items-center"
+                  className={buttonStyling.buttonClass}
+                  aria-label={`${getDoorschakelLabel(action.type)}${isActive ? ' - Momenteel actief' : ''}`}
+                  aria-pressed={isActive}
+                  title={`Klik om ${getDoorschakelLabel(action.type).toLowerCase()} te activeren. Lang indrukken om status te controleren.`}
                   style={{ 
                     WebkitTapHighlightColor: 'transparent',
                     userSelect: 'none',
                     touchAction: 'manipulation',
-                    padding: 'var(--spacing-sm)',
-                    height: '88px',
-                    minWidth: '70px'
+                    padding: '12px',
+                    height: '100px',
+                    minWidth: '140px',
+                    overflow: 'hidden'
                   }}
                 >
                   {/* Status indicator */}
@@ -751,11 +947,16 @@ export default function MobileHomePage() {
                   />
                   
                   {/* Icon container */}
-                  <div className={`w-10 h-10 rounded-lg ${action.color} flex items-center justify-center mb-2`}>
+                  <div className={`w-10 h-10 rounded-lg ${buttonStyling.iconColorClass} flex items-center justify-center mb-1`}>
                     {isLoading ? (
                       <Loader2 size={18} className="text-white animate-spin" />
                     ) : (
-                      <Icon size={18} className="text-white" />
+                      <>
+                        <Icon size={18} className="text-white" />
+                        {isActive && action.type !== 'disable' && (
+                          <CheckCircle size={12} className="text-white absolute top-0 right-0 bg-green-600 rounded-full" />
+                        )}
+                      </>
                     )}
                   </div>
                   
@@ -763,29 +964,39 @@ export default function MobileHomePage() {
                   <span 
                     className="text-center"
                     style={{
-                      fontSize: 'var(--font-size-tiny)',
+                      fontSize: '11px',
                       fontWeight: 'var(--font-weight-medium)',
                       color: 'var(--color-text-primary)',
                       fontFamily: 'var(--font-family-primary)',
-                      lineHeight: '1.2'
+                      lineHeight: '1.2',
+                      whiteSpace: 'normal',
+                      wordBreak: 'break-word',
+                      textAlign: 'center',
+                      maxWidth: '100%'
                     }}
                   >
                     {action.label}
                   </span>
                   
-                  {/* Status badge with age */}
+                  {/* Enhanced status badge with better visual feedback */}
                   <div 
-                    className="mt-1 text-center"
+                    className="mt-0.5 text-center"
                     style={{
-                      fontSize: '10px',
-                      color: 'var(--color-text-muted)',
+                      fontSize: '9px',
+                      color: isActive ? '#059669' : 'var(--color-text-muted)',
                       fontFamily: 'var(--font-family-primary)',
-                      lineHeight: '1'
+                      lineHeight: '1.1',
+                      fontWeight: isActive ? 'var(--font-weight-medium)' : 'normal'
                     }}
                   >
-                    <div>{getStatusLabel(currentStatus)}</div>
-                    {forwardingStatus[action.type]?.lastChecked && (
-                      <div style={{ fontSize: '9px', marginTop: '2px' }}>
+                    <div>
+                      {isActive ? '✓ Actief' : getStatusLabel(currentStatus)}
+                      {isActive && action.type !== 'disable' && (
+                        <span style={{ color: '#059669', marginLeft: '2px' }}>●</span>
+                      )}
+                    </div>
+                    {forwardingStatus[action.type]?.lastChecked && !isActive && (
+                      <div style={{ fontSize: '8px', marginTop: '1px' }}>
                         {getStatusAge(forwardingStatus[action.type].lastChecked)}
                       </div>
                     )}
@@ -848,6 +1059,145 @@ export default function MobileHomePage() {
         </motion.div>
 
       </div>
+
+      {/* Real-time Notifications Panel */}
+      <AnimatePresence>
+        {showNotifications && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-start justify-center z-50 pt-20"
+            onClick={() => setShowNotifications(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: -20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: -20 }}
+              className="blabla-card w-full max-w-md mx-4 max-h-[70vh] overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between mb-4 pb-4 border-b border-gray-100">
+                <div className="flex items-center space-x-2">
+                  <BellRing size={20} className="text-blue-600" />
+                  <h3 className="text-lg font-semibold text-gray-900">Meldingen</h3>
+                  {hasNewNotifications && (
+                    <div className="w-2 h-2 bg-red-500 rounded-full" />
+                  )}
+                </div>
+                <div className="flex items-center space-x-2">
+                  {notifications.some(n => !n.read) && (
+                    <motion.button
+                      whileTap={{ scale: 0.95 }}
+                      onClick={markAllNotificationsAsRead}
+                      className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                    >
+                      Alles gelezen
+                    </motion.button>
+                  )}
+                  <motion.button
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => setShowNotifications(false)}
+                    className="p-1 hover:bg-gray-100 rounded-lg"
+                  >
+                    <X size={16} className="text-gray-600" />
+                  </motion.button>
+                </div>
+              </div>
+
+              {/* Notifications List */}
+              <div className="space-y-3 max-h-96 overflow-y-auto">
+                {notifications.length === 0 ? (
+                  <div className="text-center py-8">
+                    <Bell size={32} className="text-gray-300 mx-auto mb-2" />
+                    <p className="text-gray-500">Geen meldingen</p>
+                  </div>
+                ) : (
+                  notifications.map((notification, index) => {
+                    const Icon = getNotificationIcon(notification.type);
+                    return (
+                      <motion.div
+                        key={notification.id}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: 0.1 * index }}
+                        className={`p-3 rounded-xl border cursor-pointer transition-all hover:shadow-sm ${
+                          notification.read ? 'border-gray-100 bg-gray-50' : 'border-blue-100 bg-blue-50'
+                        }`}
+                        onClick={() => handleNotificationClick(notification)}
+                      >
+                        <div className="flex items-start space-x-3">
+                          {/* Icon */}
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+                            getNotificationColor(notification.priority, notification.read)
+                          }`}>
+                            <Icon size={16} />
+                          </div>
+                          
+                          {/* Content */}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-start justify-between">
+                              <h4 className={`font-medium text-sm ${
+                                notification.read ? 'text-gray-700' : 'text-gray-900'
+                              }`}>
+                                {notification.title}
+                              </h4>
+                              <div className="flex items-center space-x-2 ml-2">
+                                <span className={`text-xs ${
+                                  notification.read ? 'text-gray-400' : 'text-gray-500'
+                                }`}>
+                                  {formatNotificationTime(notification.timestamp)}
+                                </span>
+                                {!notification.read && (
+                                  <div className="w-2 h-2 bg-blue-500 rounded-full" />
+                                )}
+                              </div>
+                            </div>
+                            <p className={`text-xs mt-1 ${
+                              notification.read ? 'text-gray-500' : 'text-gray-600'
+                            }`}>
+                              {notification.message}
+                            </p>
+                          </div>
+                          
+                          {/* Actions */}
+                          <div className="flex items-center space-x-1">
+                            {!notification.read && (
+                              <motion.button
+                                whileTap={{ scale: 0.95 }}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  markNotificationAsRead(notification.id);
+                                }}
+                                className="p-1 hover:bg-gray-200 rounded"
+                                title="Markeer als gelezen"
+                              >
+                                <Check size={12} className="text-gray-500" />
+                              </motion.button>
+                            )}
+                            <motion.button
+                              whileTap={{ scale: 0.95 }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                deleteNotification(notification.id);
+                              }}
+                              className="p-1 hover:bg-red-100 rounded"
+                              title="Verwijderen"
+                            >
+                              <Trash2 size={12} className="text-gray-500 hover:text-red-500" />
+                            </motion.button>
+                          </div>
+                        </div>
+                      </motion.div>
+                    );
+                  })
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Enhanced Status Confirmation Modal */}
       <AnimatePresence>

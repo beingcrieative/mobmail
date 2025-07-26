@@ -18,11 +18,6 @@ interface UserProfile {
     status: string;
     expiresAt: string;
   };
-  stats: {
-    totalVoicemails: number;
-    timeSaved: number;
-    transcriptionsCompleted: number;
-  };
 }
 
 function ProfilePageContent() {
@@ -74,11 +69,6 @@ function ProfilePageContent() {
               plan: 'Pro',
               status: 'active',
               expiresAt: '2025-01-15'
-            },
-            stats: {
-              totalVoicemails: 247,
-              timeSaved: 1420,
-              transcriptionsCompleted: 189
             }
           };
           
@@ -99,11 +89,6 @@ function ProfilePageContent() {
             plan: 'Pro',
             status: 'active',
             expiresAt: '2025-01-15'
-          },
-          stats: {
-            totalVoicemails: 247,
-            timeSaved: 1420,
-            transcriptionsCompleted: 189
           }
         };
         
@@ -240,12 +225,6 @@ function ProfilePageContent() {
     }
   ];
 
-  const formatDuration = (minutes: number) => {
-    const hours = Math.floor(minutes / 60);
-    const mins = minutes % 60;
-    return `${hours}u ${mins}m`;
-  };
-
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('nl-NL', {
       year: 'numeric',
@@ -329,29 +308,6 @@ function ProfilePageContent() {
           </div>
         </motion.div>
 
-        {/* Statistics */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="mb-6"
-        >
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Jouw statistieken</h3>
-          <div className="grid grid-cols-3 gap-4">
-            <div className="bg-white rounded-xl p-4 text-center shadow-sm border border-gray-100">
-              <p className="text-2xl font-bold text-blue-600">{profile.stats.totalVoicemails}</p>
-              <p className="text-sm text-gray-600">Voicemails</p>
-            </div>
-            <div className="bg-white rounded-xl p-4 text-center shadow-sm border border-gray-100">
-              <p className="text-2xl font-bold text-green-600">{formatDuration(profile.stats.timeSaved)}</p>
-              <p className="text-sm text-gray-600">Tijd bespaard</p>
-            </div>
-            <div className="bg-white rounded-xl p-4 text-center shadow-sm border border-gray-100">
-              <p className="text-2xl font-bold text-purple-600">{profile.stats.transcriptionsCompleted}</p>
-              <p className="text-sm text-gray-600">Transcripties</p>
-            </div>
-          </div>
-        </motion.div>
 
         {/* Settings */}
         <motion.div
