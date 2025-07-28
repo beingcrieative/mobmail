@@ -80,15 +80,16 @@ export default function MobileLoginForm() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex flex-col">
+    <div className="min-h-screen flex flex-col" style={{ background: 'var(--va-bg-login)' }}>
       {/* Header */}
       <div className="flex items-center justify-between p-4 pt-16">
         <motion.button
           whileTap={{ scale: 0.95 }}
           onClick={() => router.back()}
-          className="p-2 rounded-full bg-white/80 backdrop-blur-sm shadow-sm"
+          className="p-2 rounded-full backdrop-blur-sm shadow-sm"
+          style={{ background: 'rgba(255, 255, 255, 0.9)', color: 'var(--va-indigo-dye)' }}
         >
-          <ArrowLeft size={20} className="text-gray-700" />
+          <ArrowLeft size={20} />
         </motion.button>
       </div>
 
@@ -106,14 +107,20 @@ export default function MobileLoginForm() {
             transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
             className="text-center mb-8"
           >
-            <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Mail size={32} className="text-blue-600" />
+            <div 
+              className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4"
+              style={{ background: 'rgba(22, 138, 173, 0.1)' }}
+            >
+              <Mail size={32} style={{ color: 'var(--va-bondi-blue)' }} />
             </div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">
-              Welkom terug
+            <h1 
+              className="text-3xl font-bold mb-2"
+              style={{ color: 'var(--va-indigo-dye)' }}
+            >
+              Welkom terug bij VoicemailAI
             </h1>
-            <p className="text-gray-600">
-              Log in om je voicemails te beheren
+            <p style={{ color: 'var(--va-lapis-lazuli)' }}>
+              Jouw ZZP business assistent wacht op je 💼
             </p>
           </motion.div>
 
@@ -127,7 +134,11 @@ export default function MobileLoginForm() {
           >
             {/* Email */}
             <div className="space-y-2">
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+              <label 
+                htmlFor="email" 
+                className="block text-sm font-medium"
+                style={{ color: 'var(--va-indigo-dye)' }}
+              >
                 E-mailadres
               </label>
               <div className="relative">
@@ -137,16 +148,32 @@ export default function MobileLoginForm() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  className="w-full px-4 py-4 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-lg"
+                  className="w-full px-4 py-4 bg-white rounded-2xl focus:outline-none transition-all duration-200 text-lg"
+                  style={{
+                    border: '2px solid var(--va-keppel)',
+                    color: 'var(--va-indigo-dye)'
+                  }}
+                  onFocus={(e) => {
+                    e.currentTarget.style.borderColor = 'var(--va-bondi-blue)';
+                    e.currentTarget.style.boxShadow = '0 0 0 3px rgba(22, 138, 173, 0.1)';
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.borderColor = 'var(--va-keppel)';
+                    e.currentTarget.style.boxShadow = 'none';
+                  }}
                   placeholder="naam@voorbeeld.nl"
                 />
-                <Mail size={20} className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                <Mail size={20} className="absolute right-4 top-1/2 transform -translate-y-1/2" style={{ color: 'var(--va-verdigris)' }} />
               </div>
             </div>
 
             {/* Password */}
             <div className="space-y-2">
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+              <label 
+                htmlFor="password" 
+                className="block text-sm font-medium"
+                style={{ color: 'var(--va-indigo-dye)' }}
+              >
                 Wachtwoord
               </label>
               <div className="relative">
@@ -156,13 +183,26 @@ export default function MobileLoginForm() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  className="w-full px-4 py-4 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-lg pr-12"
+                  className="w-full px-4 py-4 bg-white rounded-2xl focus:outline-none transition-all duration-200 text-lg pr-12"
+                  style={{
+                    border: '2px solid var(--va-keppel)',
+                    color: 'var(--va-indigo-dye)'
+                  }}
+                  onFocus={(e) => {
+                    e.currentTarget.style.borderColor = 'var(--va-bondi-blue)';
+                    e.currentTarget.style.boxShadow = '0 0 0 3px rgba(22, 138, 173, 0.1)';
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.borderColor = 'var(--va-keppel)';
+                    e.currentTarget.style.boxShadow = 'none';
+                  }}
                   placeholder="Je wachtwoord"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400"
+                  className="absolute right-4 top-1/2 transform -translate-y-1/2"
+                  style={{ color: 'var(--va-verdigris)' }}
                 >
                   {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                 </button>
@@ -174,7 +214,8 @@ export default function MobileLoginForm() {
               <button
                 type="button"
                 onClick={() => router.push('/mobile-v3/auth/forgot-password')}
-                className="text-sm text-blue-600 font-medium"
+                className="text-sm font-medium"
+                style={{ color: 'var(--va-bondi-blue)' }}
               >
                 Wachtwoord vergeten?
               </button>
@@ -185,7 +226,23 @@ export default function MobileLoginForm() {
               whileTap={{ scale: 0.98 }}
               type="submit"
               disabled={loading || !email.trim() || !password.trim()}
-              className="w-full py-4 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white font-semibold rounded-2xl shadow-lg transition-all duration-200 flex items-center justify-center"
+              className="w-full py-4 text-white font-semibold rounded-2xl shadow-lg transition-all duration-200 flex items-center justify-center"
+              style={{
+                background: loading || !email.trim() || !password.trim() 
+                  ? '#D1D5DB' 
+                  : 'var(--va-gradient-professional)',
+                cursor: loading || !email.trim() || !password.trim() ? 'not-allowed' : 'pointer'
+              }}
+              onMouseEnter={(e) => {
+                if (!loading && email.trim() && password.trim()) {
+                  e.currentTarget.style.transform = 'translateY(-1px)';
+                  e.currentTarget.style.boxShadow = '0 8px 24px rgba(22, 138, 173, 0.3)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.1)';
+              }}
             >
               {loading ? (
                 <div className="flex items-center space-x-2">
@@ -205,11 +262,12 @@ export default function MobileLoginForm() {
             transition={{ delay: 0.6 }}
             className="text-center mt-8"
           >
-            <p className="text-gray-600">
+            <p style={{ color: 'var(--va-lapis-lazuli)' }}>
               Nog geen account?{' '}
               <button
                 onClick={() => router.push('/register')}
-                className="text-blue-600 font-medium"
+                className="font-medium"
+                style={{ color: 'var(--va-bondi-blue)' }}
               >
                 Registreren
               </button>
