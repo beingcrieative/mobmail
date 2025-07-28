@@ -307,49 +307,73 @@ export default function AgentAssistantPage() {
   }
 
   return (
-    <div className="min-h-screen pb-20 clean-background">
-      <Header title="Assistant" showBack />
+    <div className="min-h-screen pb-20" style={{ background: 'var(--va-bg-assistant)' }}>
+      <Header title="ZZP Business Assistant" showBack />
 
       <div className="px-4 py-4">
-        {/* Agent Status */}
+        {/* AI Assistant Status - VoicemailAI Success Partner */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           className="mb-6"
         >
-          <div className="blabla-card">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <div 
-                  className="w-3 h-3 rounded-full" 
-                  style={{ 
-                    backgroundColor: assistantActive ? 'var(--color-success)' : 'var(--color-error)' 
-                  }} 
-                />
-                <div>
-                  <h2 className="font-semibold text-gray-900">
-                    Assistant {assistantActive ? 'Actief' : 'Inactief'}
-                  </h2>
-                  <p className="text-sm text-gray-600">
-                    {actions.filter(a => a.status === 'pending').length} nieuwe acties
-                  </p>
+          <div
+            className="p-4 rounded-xl"
+            style={{
+              background: '#ebf7e8',
+              border: '2px solid var(--va-light-green-2)'
+            }}
+          >
+            <div className="flex justify-between items-center">
+              <div>
+                <div
+                  className="font-bold"
+                  style={{ color: 'var(--va-indigo-dye)' }}
+                >
+                  🟢 AI Assistant Actief
+                </div>
+                <div
+                  className="text-sm"
+                  style={{ color: 'var(--va-lapis-lazuli)' }}
+                >
+                  Helpt je business groeien • 24/7 beschikbaar
                 </div>
               </div>
-              <motion.button
-                whileTap={{ scale: 0.95 }}
-                onClick={() => setAgentActive(!assistantActive)}
-                className="p-3 rounded-full"
-                style={{
-                  backgroundColor: assistantActive ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)'
-                }}
+              <div
+                className="w-12 h-6 rounded-full relative"
+                style={{ background: 'var(--va-emerald)' }}
               >
-                <Power 
-                  size={20} 
-                  style={{ 
-                    color: assistantActive ? 'var(--color-success)' : 'var(--color-error)' 
-                  }} 
-                />
-              </motion.button>
+                <div className="w-5 h-5 bg-white rounded-full absolute right-0.5 top-0.5 shadow-sm"></div>
+              </div>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* Business Insights - VoicemailAI Intelligence */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.05 }}
+          className="mb-6"
+        >
+          <div
+            className="p-3 rounded-xl"
+            style={{
+              background: '#dcf1eb',
+              border: '2px solid var(--va-verdigris)'
+            }}
+          >
+            <div
+              className="font-bold mb-2 text-sm"
+              style={{ color: 'var(--va-indigo-dye)' }}
+            >
+              💡 Business Inzichten
+            </div>
+            <div
+              className="text-sm"
+              style={{ color: 'var(--va-lapis-lazuli)' }}
+            >
+              "Je hebt vandaag {actions.length} warme leads binnen. Plan follow-ups voor optimale conversie!"
             </div>
           </div>
         </motion.div>
@@ -385,78 +409,88 @@ export default function AgentAssistantPage() {
           </div>
         </motion.div>
 
-        {/* Voice Chat Interface */}
+        {/* VoicemailAI Chat Interface */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
           className="mb-6"
         >
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Chat met Agent</h3>
+          <div
+            className="font-bold mb-3"
+            style={{ color: 'var(--va-indigo-dye)' }}
+          >
+            💬 Chat met je Business AI
+          </div>
           
-          {/* Chat Messages */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 mb-4">
-            <div className="p-4 max-h-64 overflow-y-auto">
+          {/* Chat Messages Container */}
+          <div
+            className="p-4 rounded-xl flex-1"
+            style={{
+              background: 'white',
+              border: '2px solid var(--va-keppel)'
+            }}
+          >
+            <div
+              className="h-32 overflow-y-auto p-3 mb-3 space-y-3 rounded-lg"
+              style={{
+                border: '2px solid var(--va-light-green-2)',
+                background: '#f7fbe9'
+              }}
+            >
               {chatMessages.map((message) => (
                 <div
                   key={message.id}
                   className={`mb-3 flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
                 >
-                  <div className={`max-w-xs px-3 py-2 rounded-lg ${
-                    message.type === 'user'
-                      ? 'bg-blue-500 text-white'
-                      : 'bg-gray-100 text-gray-900'
-                  }`}>
-                    <p className="text-sm">{message.message}</p>
+                  <div 
+                    className="p-3 rounded-lg text-sm"
+                    style={{
+                      background: message.type === 'user' ? 'var(--va-bondi-blue)' : 'var(--va-emerald)',
+                      color: 'white'
+                    }}
+                  >
+                    <strong>{message.type === 'user' ? 'Jij:' : 'Business AI:'}</strong> {message.message}
                   </div>
                 </div>
               ))}
               {sendingMessage && (
                 <div className="flex justify-start mb-3">
-                  <div className="bg-gray-100 px-3 py-2 rounded-lg">
-                    <Loader2 className="w-4 h-4 animate-spin text-gray-600" />
+                  <div 
+                    className="px-3 py-2 rounded-lg"
+                    style={{ background: 'var(--va-emerald)', color: 'white' }}
+                  >
+                    <Loader2 className="w-4 h-4 animate-spin" />
                   </div>
                 </div>
               )}
             </div>
-          </div>
 
-          {/* Input Interface */}
-          <div className="flex space-x-2">
-            <div className="flex-1 flex rounded-xl border border-gray-200 bg-white">
+            {/* VoicemailAI Input Interface */}
+            <div className="flex gap-3">
               <input
                 type="text"
-                placeholder="Typ je instructie..."
+                placeholder="Vraag je business AI om hulp..."
                 value={textInput}
                 onChange={(e) => setTextInput(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && handleSendMessage(textInput)}
-                className="flex-1 px-4 py-3 rounded-l-xl focus:outline-none"
+                className="flex-1 px-3 py-2 rounded-lg focus:outline-none"
+                style={{
+                  border: '2px solid var(--va-keppel)',
+                  color: 'var(--va-indigo-dye)',
+                  background: 'white'
+                }}
               />
               <motion.button
                 whileTap={{ scale: 0.95 }}
                 onClick={() => handleSendMessage(textInput)}
                 disabled={!textInput.trim() || sendingMessage}
-                className="px-4 py-3 bg-blue-500 text-white rounded-r-xl disabled:opacity-50"
+                className="px-4 py-2 rounded-lg text-white disabled:opacity-50"
+                style={{ background: 'var(--va-emerald)' }}
               >
-                <Send size={16} />
+                📤
               </motion.button>
             </div>
-            
-            {/* Voice Button */}
-            <motion.button
-              whileTap={{ scale: 0.95 }}
-              onTouchStart={handleVoiceStart}
-              onTouchEnd={handleVoiceStop}
-              onMouseDown={handleVoiceStart}
-              onMouseUp={handleVoiceStop}
-              className={`p-3 rounded-xl ${
-                isRecording 
-                  ? 'bg-red-500 text-white' 
-                  : 'bg-blue-500 text-white'
-              }`}
-            >
-              {isRecording ? <MicOff size={24} /> : <Mic size={24} />}
-            </motion.button>
           </div>
           
           <p className="text-xs text-gray-500 mt-2 text-center">

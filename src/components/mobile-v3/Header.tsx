@@ -42,11 +42,12 @@ export default function Header({
   return (
     <div 
       style={{
-        background: 'transparent',
+        background: 'linear-gradient(135deg, rgba(22, 138, 173, 0.05) 0%, rgba(26, 117, 159, 0.08) 100%)',
         padding: 'var(--spacing-md)',
         height: '80px',
         display: 'flex',
-        alignItems: 'center'
+        alignItems: 'center',
+        borderBottom: '1px solid rgba(22, 138, 173, 0.1)'
       }}
     >
       <div className="flex items-center justify-between w-full">
@@ -61,15 +62,15 @@ export default function Header({
               style={{
                 padding: 'var(--spacing-sm)',
                 borderRadius: 'var(--radius-sm)',
-                background: 'rgba(255, 255, 255, 0.2)',
+                background: 'rgba(22, 138, 173, 0.1)',
                 backdropFilter: 'blur(8px)',
-                border: '1px solid rgba(255, 255, 255, 0.3)',
+                border: '1px solid rgba(22, 138, 173, 0.2)',
                 transition: 'var(--transition-default)'
               }}
             >
               <ArrowLeft 
                 size={20} 
-                style={{ color: 'var(--color-text-secondary)' }} 
+                style={{ color: 'var(--va-bondi-blue)' }} 
               />
             </motion.button>
           )}
@@ -97,15 +98,15 @@ export default function Header({
               style={{
                 padding: 'var(--spacing-sm)',
                 borderRadius: 'var(--radius-sm)',
-                background: 'rgba(255, 255, 255, 0.2)',
+                background: 'rgba(22, 138, 173, 0.1)',
                 backdropFilter: 'blur(8px)',
-                border: '1px solid rgba(255, 255, 255, 0.3)',
+                border: '1px solid rgba(22, 138, 173, 0.2)',
                 transition: 'var(--transition-default)'
               }}
             >
               <Bell 
                 size={20} 
-                style={{ color: 'var(--color-text-secondary)' }} 
+                style={{ color: 'var(--va-bondi-blue)' }} 
               />
               <div 
                 className="absolute -top-1 -right-1 w-3 h-3 rounded-full border-2"
@@ -125,15 +126,15 @@ export default function Header({
               style={{
                 padding: 'var(--spacing-sm)',
                 borderRadius: 'var(--radius-sm)',
-                background: 'rgba(255, 255, 255, 0.2)',
+                background: 'rgba(22, 138, 173, 0.1)',
                 backdropFilter: 'blur(8px)',
-                border: '1px solid rgba(255, 255, 255, 0.3)',
+                border: '1px solid rgba(22, 138, 173, 0.2)',
                 transition: 'var(--transition-default)'
               }}
             >
               <Settings 
                 size={20} 
-                style={{ color: 'var(--color-text-secondary)' }} 
+                style={{ color: 'var(--va-bondi-blue)' }} 
               />
             </motion.button>
           )}

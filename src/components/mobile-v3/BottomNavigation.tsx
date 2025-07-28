@@ -56,7 +56,7 @@ export default function BottomNavigation() {
                 style={{ 
                   WebkitTapHighlightColor: 'transparent',
                   touchAction: 'manipulation',
-                  background: isActive ? 'rgba(74, 144, 226, 0.1)' : 'transparent',
+                  background: isActive ? 'rgba(22, 138, 173, 0.1)' : 'transparent',
                   borderRadius: 'var(--radius-sm)',
                   transition: 'var(--transition-default)',
                   minWidth: '60px'
