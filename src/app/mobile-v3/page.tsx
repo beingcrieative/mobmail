@@ -118,7 +118,6 @@ export default function MobileHomePage() {
         unreadCount: 0,
         avgDuration: 0
       });
-      setRecentActivity([]);
     } finally {
       setDataLoading(false);
     }
