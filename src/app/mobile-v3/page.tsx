@@ -44,13 +44,13 @@ const validateUSSDCode = (code: string): boolean => {
   return safePatterns.some(pattern => pattern.test(code));
 };
 
-// Get status color for visual indicators
+// Get status color for visual indicators - VoicemailAI success psychology
 const getStatusColor = (status: string): string => {
   switch (status) {
-    case 'active': return '#10b981'; // Green
-    case 'inactive': return '#ef4444'; // Red
-    case 'unknown': return '#6b7280'; // Gray
-    default: return '#d1d5db'; // Light gray
+    case 'active': return '#76c893'; // VoicemailAI Emerald - business success
+    case 'inactive': return '#ef4444'; // Red (kept for error)
+    case 'unknown': return '#52b69a'; // VoicemailAI Keppel - balanced state
+    default: return '#34a0a4'; // VoicemailAI Verdigris - information
   }
 };
 
@@ -75,7 +75,7 @@ export default function MobileHomePage() {
     unreadCount: 0,
     avgDuration: 0
   });
-  const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
+  // Recent activity removed for now - structure preserved for future additions
   const [dataLoading, setDataLoading] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -101,9 +101,8 @@ export default function MobileHomePage() {
   const fetchRealData = async (userId: string) => {
     setDataLoading(true);
     try {
-      const { dashboardStats, recentActivity } = await StatisticsService.getUserStatistics(userId);
+      const { dashboardStats } = await StatisticsService.getUserStatistics(userId);
       setStats(dashboardStats);
-      setRecentActivity(recentActivity);
     } catch (error) {
       console.error('Error fetching real data:', error);
       // Show more specific error information
@@ -662,22 +661,7 @@ export default function MobileHomePage() {
     }
   ];
 
-  const getActivityIcon = (type: string) => {
-    switch (type) {
-      case 'voicemail': return Phone;
-      case 'transcription': return PlayCircle;
-      case 'insight': return TrendingUp;
-      default: return Clock;
-    }
-  };
-
-  const getActivityColor = (priority: string) => {
-    switch (priority) {
-      case 'high': return 'bg-red-100 text-red-600';
-      case 'medium': return 'bg-yellow-100 text-yellow-600';
-      default: return 'bg-gray-100 text-gray-600';
-    }
-  };
+  // Activity helper functions removed - can be re-added when implementing future recent activity feature
 
   // Show loading while checking authentication
   if (authLoading) {
@@ -710,7 +694,7 @@ export default function MobileHomePage() {
   }
 
   return (
-    <div className="h-full" style={{ background: 'transparent' }}>
+    <div className="h-full" style={{ background: 'var(--va-bg-home)' }}>
       <Header 
         title="VoicemailAI" 
         showNotifications={hasNewNotifications}
@@ -721,13 +705,17 @@ export default function MobileHomePage() {
       <div className="px-4 py-6 pb-24">
         <AuthStatus />
         
-        {/* Welcome Section - Clean Professional */}
+        {/* Welcome Section - VoicemailAI Success Gradient */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="accent-hero mb-6"
+          className="mb-6"
           style={{
-            margin: '0 -20px 24px -20px'
+            margin: '0 -20px 24px -20px',
+            padding: 'var(--spacing-md)',
+            background: 'var(--va-gradient-welcome)',
+            borderRadius: 'var(--radius-md)',
+            color: 'var(--color-text-white)'
           }}
         >
           <h2
@@ -739,7 +727,7 @@ export default function MobileHomePage() {
               fontFamily: 'var(--font-family-primary)'
             }}
           >
-            {getGreeting()}, {getDisplayName()}!
+            👋 {getGreeting()}, {getDisplayName()}!
           </h2>
           <p 
             style={{
@@ -748,10 +736,48 @@ export default function MobileHomePage() {
               fontFamily: 'var(--font-family-primary)'
             }}
           >
-            {dataLoading ? 'Gegevens laden...' : getPersonalizedMessage()}
+            {dataLoading ? 'Gegevens laden...' : `${stats.todayVoicemails} nieuwe berichten - zakelijk actief! 💚`}
           </p>
         </motion.div>
 
+        {/* Business Stats Section - VoicemailAI Success Metrics */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="mb-6"
+        >
+          <div
+            className="p-4 rounded-xl"
+            style={{
+              background: '#dcf1eb',
+              border: '2px solid var(--va-verdigris)'
+            }}
+          >
+            <div className="flex items-center gap-3">
+              <div
+                className="w-10 h-10 rounded-full flex items-center justify-center text-white"
+                style={{ background: 'var(--va-verdigris)' }}
+              >
+                📈
+              </div>
+              <div>
+                <div
+                  className="font-medium text-sm"
+                  style={{ color: 'var(--va-indigo-dye)' }}
+                >
+                  Vandaag: €{stats.todayVoicemails * 150} leads
+                </div>
+                <div
+                  className="text-xs"
+                  style={{ color: 'var(--va-lapis-lazuli)' }}
+                >
+                  {stats.todayVoicemails} gesprekken → {Math.max(1, Math.floor(stats.todayVoicemails * 0.7))} potentiële klanten
+                </div>
+              </div>
+            </div>
+          </div>
+        </motion.div>
 
         {/* Quick Actions */}
         <motion.div
@@ -772,16 +798,21 @@ export default function MobileHomePage() {
             Snelle acties
           </h3>
           
-          {/* Enhanced Bulk Status Check Button */}
+          {/* Enhanced Bulk Status Check Button - VoicemailAI Professional */}
           <motion.button
             whileTap={{ scale: 0.95 }}
             onClick={checkAllForwardingStatus}
-            className="mb-4 flex items-center justify-center space-x-2 px-4 py-3 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-xl transition-colors"
+            className="mb-4 flex items-center justify-center space-x-2 px-4 py-3 rounded-xl transition-colors"
+            style={{
+              background: '#f0fae8',
+              border: '2px solid var(--va-light-green-1)',
+              color: 'var(--va-indigo-dye)'
+            }}
             aria-label="Controleer de status van alle doorschakelingen"
             title="Controleert systematisch de status van alle doorschakeling types"
           >
-            <BarChart3 size={16} className="text-blue-600" />
-            <span className="text-sm font-medium text-blue-700">Alle statussen controleren</span>
+            <BarChart3 size={16} style={{ color: 'var(--va-bondi-blue)' }} />
+            <span className="text-sm font-medium" style={{ color: 'var(--va-indigo-dye)' }}>Alle statussen controleren</span>
           </motion.button>
           
           <div className="grid grid-cols-2 gap-3">
@@ -916,54 +947,75 @@ export default function MobileHomePage() {
           </div>
         </motion.div>
 
-        {/* Recent Activity */}
+        {/* Navigation Actions - VoicemailAI Business Focus */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
+          transition={{ delay: 0.25 }}
           className="mb-8"
         >
-          <h3 
-            style={{
-              fontSize: 'var(--font-size-h3)',
-              fontWeight: 'var(--font-weight-bold)',
-              color: 'var(--color-text-primary)',
-              marginBottom: 'var(--spacing-md)',
-              fontFamily: 'var(--font-family-primary)'
-            }}
-          >
-            Recente activiteit
-          </h3>
           <div className="space-y-3">
-            {recentActivity.map((activity, index) => {
-              const Icon = getActivityIcon(activity.type);
-              return (
-                <motion.div
-                  key={activity.id}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.1 * index }}
-                  whileTap={{ scale: 0.98 }}
-                  className="blabla-card-compact flex items-center space-x-3 cursor-pointer hover-lift"
-                  style={{ 
-                    WebkitTapHighlightColor: 'transparent',
-                    touchAction: 'manipulation'
-                  }}
-                  onClick={() => router.push('/mobile-v3/transcriptions')}
+            <motion.button
+              whileTap={{ scale: 0.98 }}
+              onClick={() => router.push('/mobile-v3/transcriptions')}
+              className="w-full flex items-center gap-3 p-3 rounded-xl transition-all"
+              style={{
+                border: '2px solid var(--va-verdigris)',
+                background: 'white'
+              }}
+            >
+              <div
+                className="w-8 h-8 rounded-full text-white flex items-center justify-center text-sm"
+                style={{ background: 'var(--va-verdigris)' }}
+              >
+                💬
+              </div>
+              <div className="text-left">
+                <div
+                  className="font-medium text-sm"
+                  style={{ color: 'var(--va-indigo-dye)' }}
                 >
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${getActivityColor(activity.priority)}`}>
-                    <Icon size={18} />
-                  </div>
-                  <div className="flex-1">
-                    <h4 className="font-medium text-gray-900">{activity.title}</h4>
-                    <p className="text-sm text-gray-600">{activity.subtitle}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-xs text-gray-500">{activity.time}</p>
-                  </div>
-                </motion.div>
-              );
-            })}
+                  Bekijk Gesprekken
+                </div>
+                <div
+                  className="text-xs"
+                  style={{ color: 'var(--va-lapis-lazuli)' }}
+                >
+                  {stats.todayVoicemails} nieuwe transcripties
+                </div>
+              </div>
+            </motion.button>
+            
+            <motion.button
+              whileTap={{ scale: 0.98 }}
+              onClick={() => router.push('/mobile-v3/agent')}
+              className="w-full flex items-center gap-3 p-3 rounded-xl transition-all"
+              style={{
+                border: '2px solid var(--va-emerald)',
+                background: 'white'
+              }}
+            >
+              <div
+                className="w-8 h-8 rounded-full text-white flex items-center justify-center text-sm"
+                style={{ background: 'var(--va-emerald)' }}
+              >
+                🤖
+              </div>
+              <div className="text-left">
+                <div
+                  className="font-medium text-sm"
+                  style={{ color: 'var(--va-indigo-dye)' }}
+                >
+                  AI Business Assistant
+                </div>
+                <div
+                  className="text-xs"
+                  style={{ color: 'var(--va-lapis-lazuli)' }}
+                >
+                  Optimaliseer je ZZP business
+                </div>
+              </div>
+            </motion.button>
           </div>
         </motion.div>
 
