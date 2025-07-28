@@ -7,6 +7,31 @@ import { useRouter } from 'next/navigation';
 import Header from '@/components/mobile-v3/Header';
 import BottomNavigation from '@/components/mobile-v3/BottomNavigation';
 
+// VoicemailAI Avatar Gradient System - from designer demo
+const avatarColors = [
+  'linear-gradient(135deg, #76c893 0%, #52b69a 100%)', // Emerald to Keppel
+  'linear-gradient(135deg, #52b69a 0%, #34a0a4 100%)', // Keppel to Verdigris
+  'linear-gradient(135deg, #168aad 0%, #1a759f 100%)', // Bondi to Cerulean
+  'linear-gradient(135deg, #1a759f 0%, #1e6091 100%)', // Cerulean to Lapis
+  'linear-gradient(135deg, #99d98c 0%, #76c893 100%)'  // Light green to Emerald
+];
+
+function getInitials(name: string): string {
+  return name
+    .split(' ')
+    .map((n) => n[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2);
+}
+
+function getAvatarColor(phoneNumber: string): string {
+  const hash = phoneNumber
+    .split('')
+    .reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  return avatarColors[hash % avatarColors.length];
+}
+
 interface Transcription {
   id: string;
   eventType: string;
@@ -318,63 +343,80 @@ export default function TranscriptionsPage() {
   }
 
   return (
-    <div className="min-h-screen pb-20 clean-background">
+    <div className="min-h-screen pb-20" style={{ background: 'var(--va-bg-conversations)' }}>
       <Header title="Transcripties" showBack />
 
       <div className="px-4 py-4">
-        {/* Simplified Header Stats - Calm Tech Style */}
+        {/* Business Stats - VoicemailAI Success Metrics */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           className="mb-6"
         >
-          <div className="flex items-center justify-between blabla-card mb-4">
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center">
-                <Phone size={18} className="text-blue-600" />
-              </div>
+          <div
+            className="p-4 rounded-xl"
+            style={{
+              background: '#ebf7e8',
+              border: '2px solid var(--va-light-green-2)'
+            }}
+          >
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">📈</span>
               <div>
-                <p className="text-lg font-semibold text-gray-900">
+                <div
+                  className="font-medium"
+                  style={{ color: 'var(--va-indigo-dye)' }}
+                >
                   {mounted ? conversationThreads.filter(thread => {
                     const today = new Date();
                     const todayStart = Math.floor(new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime() / 1000);
                     return thread.lastCallTime >= todayStart;
-                  }).length : 0} actieve gesprekken
-                </p>
-                <p className="text-sm text-gray-600">vandaag ontvangen</p>
+                  }).length : 0} aktieve leads vandaag
+                </div>
+                <div
+                  className="text-sm"
+                  style={{ color: 'var(--va-lapis-lazuli)' }}
+                >
+                  {conversationThreads.length} gesprekken • €{conversationThreads.length * 150} potentiële omzet
+                </div>
               </div>
             </div>
-            <motion.button
-              whileTap={{ scale: 0.95 }}
-              onClick={handleRefresh}
-              disabled={refreshing}
-              className="p-2 rounded-full bg-gray-50 hover:bg-gray-100 disabled:opacity-50 transition-colors"
-            >
-              <RefreshCw size={16} className={`text-gray-600 ${refreshing ? 'animate-spin' : ''}`} />
-            </motion.button>
           </div>
         </motion.div>
 
-        {/* Simplified Filters - Calm Tech Style */}
+        {/* Professional Search - VoicemailAI Style */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
           className="mb-6 space-y-4"
         >
-          {/* Clean Search Bar */}
-          <div className="relative">
-            <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Zoek op naam of nummer..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-            />
+          {/* Professional Search Bar */}
+          <div
+            className="p-3 rounded-xl"
+            style={{
+              background: 'white',
+              border: '2px solid var(--va-bondi-blue)'
+            }}
+          >
+            <div className="relative">
+              <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2" style={{ color: 'var(--va-keppel)' }} />
+              <input
+                type="text"
+                placeholder="🔍 Zoek klanten, bedrijven, nummers..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 rounded-lg focus:outline-none transition-all"
+                style={{
+                  border: '2px solid var(--va-keppel)',
+                  color: 'var(--va-indigo-dye)',
+                  background: 'white'
+                }}
+              />
+            </div>
           </div>
 
-          {/* Essential Time Filters */}
+          {/* Professional Time Filters */}
           <div className="flex space-x-2">
             {[
               { key: 'all', label: 'Alle', icon: null },
@@ -385,11 +427,11 @@ export default function TranscriptionsPage() {
                 key={filter.key}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => setDateFilter(filter.key as any)}
-                className={`flex-1 py-2.5 px-4 rounded-xl text-sm font-medium transition-all duration-200 ${
-                  dateFilter === filter.key
-                    ? 'bg-blue-600 text-white shadow-sm'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
+                className="flex-1 py-2.5 px-4 rounded-xl text-sm font-medium transition-all duration-200"
+                style={{
+                  background: dateFilter === filter.key ? 'var(--va-verdigris)' : '#f3f3f5',
+                  color: dateFilter === filter.key ? 'white' : 'var(--va-indigo-dye)'
+                }}
               >
                 {filter.label}
               </motion.button>
@@ -488,13 +530,22 @@ export default function TranscriptionsPage() {
 }
 
 // Helper function to normalize transcription data
-const normalizeTranscriptionData = (transcription: Transcription) => ({
-  customerName: transcription.customerName || transcription.customer_name || 'Onbekende beller',
-  companyName: transcription.companyName || transcription.company_name || '',
-  phoneNumber: transcription.externalNumber || transcription.caller_phone || '',
-  summary: transcription.transcriptSummary || '',
-  callType: transcription.callDuration < 60 ? 'Kort' : transcription.callDuration < 180 ? 'Normaal' : 'Lang'
-});
+const normalizeTranscriptionData = (transcription: Transcription) => {
+  const customerName = transcription.customerName || transcription.customer_name || '';
+  const phoneNumber = transcription.externalNumber || transcription.caller_phone || '';
+  
+  // Always prefer showing the phone number as the caller identifier
+  // since customer_name often contains incorrect data (ZZP'er name instead of caller)
+  const displayName = phoneNumber || customerName || 'Onbekende beller';
+  
+  return {
+    customerName: displayName,
+    companyName: transcription.companyName || transcription.company_name || '',
+    phoneNumber: phoneNumber,
+    summary: transcription.transcriptSummary || '',
+    callType: transcription.callDuration < 60 ? 'Kort' : transcription.callDuration < 180 ? 'Normaal' : 'Lang'
+  };
+};
 
 // Conversation Thread Card Component
 interface ConversationThreadCardProps {
@@ -527,49 +578,69 @@ function ConversationThreadCard({ thread, onOpen, getTimeAgo, index }: Conversat
       whileHover={{ scale: 1.01 }}
       whileTap={{ scale: 0.99 }}
       onClick={handleClick}
-      className="bg-white rounded-xl p-4 max-fold:p-2 max-fold:rounded-lg shadow-sm border border-gray-100 hover:shadow-md transition-all duration-200 cursor-pointer"
+      className="p-4 max-fold:p-2 rounded-xl max-fold:rounded-lg hover:shadow-lg transition-all duration-200 cursor-pointer"
+      style={{
+        background: 'white',
+        border: '2px solid var(--va-keppel)'
+      }}
     >
-      <div className="flex items-center space-x-3 max-fold:space-x-2">
-        {/* Customer Avatar */}
+      <div className="flex items-start gap-3">
+        {/* VoicemailAI Avatar Gradient */}
         <div className="relative">
-          <div className="w-12 h-12 max-fold:w-fold-avatar max-fold:h-fold-avatar rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-semibold text-lg max-fold:text-sm">
-            {thread.customerName.charAt(0).toUpperCase()}
+          <div
+            className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold"
+            style={{
+              background: getAvatarColor(thread.phoneNumber)
+            }}
+          >
+            {getInitials(thread.customerName)}
           </div>
           {hasMultipleCalls && (
-            <div className="absolute -top-1 -right-1 w-5 h-5 max-fold:w-fold-badge max-fold:h-fold-badge bg-red-500 rounded-full flex items-center justify-center text-white text-xs max-fold:text-fold-xs font-bold">
+            <div
+              className="absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center text-white text-xs font-bold"
+              style={{ background: 'var(--va-emerald)' }}
+            >
               {thread.totalCalls}
             </div>
           )}
         </div>
         
-        {/* Conversation Info */}
+        {/* Business-Focused Conversation Info */}
         <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between mb-1 max-fold:mb-0">
-            <h3 className="font-semibold text-gray-900 text-base max-fold:text-fold-base truncate">
+          <div className="flex justify-between items-start mb-1">
+            <div
+              className="font-bold truncate"
+              style={{ color: 'var(--va-indigo-dye)' }}
+            >
               {thread.customerName}
-            </h3>
-            <span className="text-xs max-fold:text-fold-xs text-gray-500 flex-shrink-0">
+            </div>
+            <div
+              className="text-sm"
+              style={{ color: 'var(--va-verdigris)' }}
+            >
               {getTimeAgo(thread.lastCallTime)}
-            </span>
+            </div>
           </div>
           
-          <p className="text-sm max-fold:text-fold-sm text-gray-600 truncate mb-2 max-fold:mb-1">
-            {thread.phoneNumber}
-          </p>
+          <div
+            className="text-sm mb-2"
+            style={{ color: 'var(--va-lapis-lazuli)' }}
+          >
+            {thread.companyName || 'Particulier'} • Potentiële klant
+          </div>
           
-          {/* Last Message Preview */}
-          <div className="flex items-center justify-between max-fold:flex-col max-fold:items-start max-fold:space-y-1">
-            <p className="text-sm max-fold:text-fold-sm text-gray-500 truncate flex-1 max-fold:w-full">
-              {lastCall?.transcriptSummary || 'Geen samenvatting beschikbaar'}
-            </p>
-            <div className="flex items-center space-x-2 max-fold:space-x-1 ml-2 max-fold:ml-0 flex-shrink-0 max-fold:self-end">
-              {hasMultipleCalls && (
-                <span className="text-xs max-fold:text-fold-xs bg-blue-100 text-blue-700 px-2 py-1 max-fold:px-1 max-fold:py-0.5 rounded-full">
-                  {thread.totalCalls} gesprekken
-                </span>
-              )}
-              <ChevronDown size={16} className="text-gray-400 transform -rotate-90 max-fold:hidden" />
-            </div>
+          {/* Business Summary Preview */}
+          <div
+            className="text-sm leading-relaxed"
+            style={{
+              color: 'var(--va-keppel)',
+              display: '-webkit-box',
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: 'vertical',
+              overflow: 'hidden'
+            }}
+          >
+            💰 {lastCall?.transcriptSummary || 'Geen samenvatting beschikbaar'}
           </div>
         </div>
       </div>

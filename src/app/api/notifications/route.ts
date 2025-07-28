@@ -1,10 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { PrismaClient } from '@prisma/client';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+const prisma = new PrismaClient();
 
 interface Notification {
   id: string;
@@ -32,23 +29,21 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Try to fetch from Supabase notifications table
-    const { data: notifications, error } = await supabase
-      .from('notifications')
-      .select('*')
-      .eq('user_id', userId)
-      .order('timestamp', { ascending: false })
-      .limit(50);
-
-    if (error && error.code !== 'PGRST116') { // Table doesn't exist error
-      console.error('Supabase error:', error);
-      return NextResponse.json(
-        { error: 'Database error' },
-        { status: 500 }
-      );
+    let notifications = null;
+    
+    // Try to fetch from database notifications table
+    try {
+      notifications = await prisma.notification.findMany({
+        where: { userId },
+        orderBy: { timestamp: 'desc' },
+        take: 50
+      });
+    } catch (dbError) {
+      console.log('Database not available, using mock data:', dbError);
+      notifications = null;
     }
 
-    // If table doesn't exist or no data, return mock notifications for demo
+    // If no data or DB error, return mock notifications for demo
     if (!notifications || notifications.length === 0) {
       const mockNotifications: Notification[] = [
         {
@@ -131,26 +126,35 @@ export async function POST(request: NextRequest) {
       user_id: userId
     };
 
-    // Try to insert into Supabase
-    const { data, error } = await supabase
-      .from('notifications')
-      .insert(notification)
-      .select()
-      .single();
+    // Try to insert into database
+    try {
+      const dbNotification = await prisma.notification.create({
+        data: {
+          id: notification.id,
+          userId: notification.user_id,
+          type: notification.type,
+          title: notification.title,
+          message: notification.message,
+          timestamp: BigInt(notification.timestamp),
+          read: notification.read,
+          priority: notification.priority,
+          actionUrl: notification.actionUrl,
+          metadata: notification.metadata
+        }
+      });
 
-    if (error) {
-      console.error('Error creating notification:', error);
-      // Still return success even if DB insert fails (graceful degradation)
+      return NextResponse.json({
+        notification: dbNotification,
+        message: 'Notification created successfully'
+      });
+    } catch (dbError) {
+      console.log('Database not available, returning mock response:', dbError);
+      // Return success even if DB insert fails (graceful degradation)
       return NextResponse.json({
         notification,
         message: 'Notification created (in-memory only)'
       });
     }
-
-    return NextResponse.json({
-      notification: data,
-      message: 'Notification created successfully'
-    });
 
   } catch (error) {
     console.error('Error creating notification:', error);

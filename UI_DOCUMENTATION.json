@@ -1,0 +1,1356 @@
+{
+  "app_metadata": {
+    "name": "VoicemailAI Mobile",
+    "version": "0.1.0",
+    "description": "AI-powered voicemail management platform for Dutch independent contractors (ZZP'ers) with gesture-based mobile interface",
+    "tech_stack": {
+      "frontend": ["Next.js 15", "React 18", "TypeScript", "Tailwind CSS", "Framer Motion"],
+      "backend": ["Next.js API Routes", "Node.js", "OpenRouter API", "Stripe"],
+      "database": ["Prisma (PostgreSQL)", "Supabase"],
+      "authentication": ["Supabase Auth", "Custom Cookie Management"],
+      "mobile": ["PWA", "Service Worker", "Gesture Controls", "Haptic Feedback"]
+    }
+  },
+  "screens": [
+    {
+      "screen_id": "mobile_home_dashboard",
+      "screen_name": "Mobile Home Dashboard",
+      "route": "/mobile-v3/",
+      "description": "Main dashboard for mobile users with call forwarding controls, recent conversations, and AI-powered insights",
+      "layout": {
+        "type": "vertical_scroll",
+        "sections": ["header", "auth_status", "welcome_hero", "agent_actions", "recent_conversations", "navigation"]
+      },
+      "elements": [
+        {
+          "element_id": "header_component",
+          "type": "header",
+          "subtype": "app_header",
+          "position": {
+            "section": "header",
+            "order": 1,
+            "coordinates": {
+              "x": "full_width",
+              "y": "top"
+            }
+          },
+          "properties": {
+            "title": "VoicemailAI",
+            "show_notifications": true,
+            "show_settings": false,
+            "notification_badge": "dynamic"
+          },
+          "interactions": {
+            "notification_click": {
+              "action": "toggle_notifications_panel",
+              "state_change": "showNotifications = true"
+            }
+          },
+          "styling": {
+            "height": "64px",
+            "background": "var(--card-background)",
+            "border_bottom": "1px solid var(--card-border)",
+            "shadow": "0 -1px 8px rgba(0, 0, 0, 0.04)"
+          }
+        },
+        {
+          "element_id": "auth_status_debug",
+          "type": "debug_component",
+          "subtype": "auth_status",
+          "position": {
+            "section": "auth_status",
+            "order": 1
+          },
+          "properties": {
+            "show_in_development": true,
+            "displays": ["authentication_state", "user_info", "session_status"]
+          }
+        },
+        {
+          "element_id": "welcome_hero_section",
+          "type": "hero_section",
+          "subtype": "greeting_card",
+          "position": {
+            "section": "welcome_hero",
+            "order": 1,
+            "coordinates": {
+              "x": "full_width_minus_margins",
+              "y": "after_auth_status"
+            }
+          },
+          "properties": {
+            "dynamic_greeting": true,
+            "personalized": true,
+            "time_based": true,
+            "size": "compact"
+          },
+          "styling": {
+            "class": "accent-hero",
+            "padding": "var(--spacing-md)",
+            "margin": "0 -20px 24px -20px",
+            "background": "var(--accent-gradient)",
+            "color": "var(--color-text-white)",
+            "border_radius": "var(--radius-md)"
+          },
+          "interactions": {
+            "data_loading": {
+              "shows_loading_state": true,
+              "fallback_message": "Gegevens laden..."
+            }
+          },
+          "content": {
+            "greeting_function": "getGreeting()",
+            "name_function": "getDisplayName()",
+            "message_function": "getPersonalizedMessage()"
+          }
+        },
+        {
+          "element_id": "agent_actions_section",
+          "type": "action_grid",
+          "subtype": "call_forwarding_controls",
+          "position": {
+            "section": "agent_actions",
+            "order": 1
+          },
+          "properties": {
+            "title": "Agent Actief bij..",
+            "grid_columns": 2,
+            "actions_count": 4,
+            "bulk_status_check": true
+          },
+          "elements": [
+            {
+              "element_id": "bulk_status_check_button",
+              "type": "button",
+              "subtype": "status_checker",
+              "text": "Alle statussen controleren",
+              "position": {
+                "order": 1,
+                "span": "full_width"
+              },
+              "properties": {
+                "icon": "BarChart3",
+                "loading_state": true
+              },
+              "interactions": {
+                "on_click": {
+                  "action": "checkAllForwardingStatus",
+                  "haptic_feedback": "[75,25,75]",
+                  "show_loading": true
+                }
+              },
+              "styling": {
+                "background": "bg-blue-50 hover:bg-blue-100",
+                "border": "border-blue-200",
+                "text_color": "text-blue-700"
+              }
+            },
+            {
+              "element_id": "unconditional_forwarding",
+              "type": "action_button",
+              "subtype": "ussd_control",
+              "position": {
+                "grid_position": [1, 1],
+                "order": 2
+              },
+              "properties": {
+                "label": "Altijd",
+                "icon": "PhoneForwarded",
+                "ussd_code": "*21*{forwarding_number}#",
+                "status_code": "*#21#",
+                "forwarding_type": "unconditional",
+                "security_validation": true
+              },
+              "interactions": {
+                "on_click": {
+                  "action": "activateForwarding",
+                  "validation": "validateUSSDCode",
+                  "haptic_feedback": "50ms",
+                  "loading_duration": "3000ms",
+                  "backend_call": {
+                    "type": "ussd_dialer",
+                    "success_callback": "updateForwardingStatus"
+                  }
+                },
+                "on_long_press": {
+                  "action": "checkForwardingStatus",
+                  "haptic_feedback": "100ms"
+                }
+              },
+              "state_management": {
+                "status_key": "forwardingStatus.unconditional",
+                "active_indicator": "activeForwardingType",
+                "loading_key": "loadingStates.unconditional"
+              },
+              "styling": {
+                "active_state": {
+                  "border": "border-green-400",
+                  "background": "bg-green-50",
+                  "icon_color": "bg-green-500"
+                },
+                "default_state": {
+                  "icon_color": "bg-[#006989]"
+                }
+              }
+            },
+            {
+              "element_id": "busy_forwarding",
+              "type": "action_button",
+              "subtype": "ussd_control",
+              "position": {
+                "grid_position": [1, 2],
+                "order": 3
+              },
+              "properties": {
+                "label": "Bezet",
+                "icon": "PhoneOff",
+                "ussd_code": "*67*{forwarding_number}#",
+                "status_code": "*#67#",
+                "forwarding_type": "busy"
+              },
+              "styling": {
+                "default_state": {
+                  "icon_color": "bg-[#007090]"
+                }
+              }
+            },
+            {
+              "element_id": "unanswered_forwarding",
+              "type": "action_button",
+              "subtype": "ussd_control",
+              "position": {
+                "grid_position": [2, 1],
+                "order": 4
+              },
+              "properties": {
+                "label": "Geen gehoor",
+                "icon": "PhoneMissed",
+                "ussd_code": "*61*{forwarding_number}#",
+                "status_code": "*#61#",
+                "forwarding_type": "unanswered"
+              },
+              "styling": {
+                "default_state": {
+                  "icon_color": "bg-[#01A7C2]"
+                }
+              }
+            },
+            {
+              "element_id": "disable_forwarding",
+              "type": "action_button",
+              "subtype": "ussd_control",
+              "position": {
+                "grid_position": [2, 2],
+                "order": 5
+              },
+              "properties": {
+                "label": "Uitschakelen",
+                "icon": "X",
+                "ussd_code": "##21#",
+                "forwarding_type": "disable"
+              },
+              "styling": {
+                "default_state": {
+                  "icon_color": "bg-[#A3BAC3]"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "element_id": "recent_conversations_section",
+          "type": "conversation_list",
+          "subtype": "threaded_conversations",
+          "position": {
+            "section": "recent_conversations",
+            "order": 1
+          },
+          "properties": {
+            "title": "Recente gesprekken",
+            "max_items": 5,
+            "show_all_link": true,
+            "auto_refresh": true
+          },
+          "elements": [
+            {
+              "element_id": "conversation_thread_card",
+              "type": "list_item",
+              "subtype": "conversation_card",
+              "properties": {
+                "avatar_generation": "first_letter",
+                "multiple_calls_badge": true,
+                "summary_lines": 3,
+                "summary_font_size": "11px"
+              },
+              "interactions": {
+                "on_click": {
+                  "action": "navigate_to_transcriptions",
+                  "route": "/mobile-v3/transcriptions"
+                }
+              },
+              "styling": {
+                "summary": {
+                  "display": "-webkit-box",
+                  "webkit_line_clamp": 3,
+                  "webkit_box_orient": "vertical",
+                  "overflow": "hidden",
+                  "text_align": "left",
+                  "line_height": "1.4",
+                  "font_size": "11px"
+                }
+              }
+            }
+          ],
+          "data_flow": {
+            "data_source": "conversationThreads",
+            "fetch_function": "fetchConversationThreads",
+            "backend_call": {
+              "endpoint": "/api/transcriptions",
+              "method": "GET",
+              "query_params": {
+                "clientId": "{{user.id}}",
+                "t": "{{timestamp}}"
+              },
+              "data_processing": {
+                "grouping": "by_phone_number",
+                "sorting": "by_last_call_time_desc",
+                "limit": 5
+              }
+            }
+          }
+        }
+      ],
+      "navigation": {
+        "bottom_navigation": true,
+        "can_go_back": false,
+        "next_screens": [
+          {
+            "condition": "click_transcriptions",
+            "target": "transcriptions_screen"
+          },
+          {
+            "condition": "click_agent",
+            "target": "agent_assistant_screen"
+          }
+        ]
+      },
+      "real_time_features": {
+        "notifications": {
+          "type": "realtime_panel",
+          "triggers": ["new_voicemail", "transcription_ready", "forwarding_status"],
+          "display": "slide_down_modal"
+        },
+        "status_updates": {
+          "auto_refresh": true,
+          "interval": "on_focus"
+        }
+      },
+      "error_handling": {
+        "network_error": {
+          "show_toast": true,
+          "retry_mechanism": true
+        },
+        "authentication_error": {
+          "redirect_to": "/login"
+        }
+      }
+    },
+    {
+      "screen_id": "agent_assistant_screen",
+      "screen_name": "AI Agent Assistant",
+      "route": "/mobile-v3/agent/",
+      "description": "AI-powered business assistant with real-time chat, voice input, and action generation",
+      "layout": {
+        "type": "vertical_scroll",
+        "sections": ["header", "agent_status", "action_cards", "chat_interface", "quick_commands", "navigation"]
+      },
+      "elements": [
+        {
+          "element_id": "agent_status_card",
+          "type": "status_display",
+          "subtype": "ai_agent_status",
+          "position": {
+            "section": "agent_status",
+            "order": 1
+          },
+          "properties": {
+            "status_indicator": "active/inactive",
+            "pending_actions_count": "dynamic",
+            "toggle_control": true
+          },
+          "elements": [
+            {
+              "element_id": "agent_toggle_button",
+              "type": "button",
+              "subtype": "power_toggle",
+              "interactions": {
+                "on_click": {
+                  "action": "toggleAgentActive",
+                  "state_change": "assistantActive = !assistantActive",
+                  "visual_feedback": "color_change"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "element_id": "action_cards_section",
+          "type": "swipeable_list",
+          "subtype": "ai_generated_actions",
+          "position": {
+            "section": "action_cards",
+            "order": 1
+          },
+          "properties": {
+            "title": "Acties van Assistant",
+            "swipe_to_approve": true,
+            "swipe_to_reject": true,
+            "action_types": ["callback", "email", "meeting", "quote", "reminder", "follow-up"]
+          },
+          "elements": [
+            {
+              "element_id": "action_card",
+              "type": "swipeable_card",
+              "subtype": "business_action",
+              "properties": {
+                "drag_constraints": "horizontal",
+                "approve_threshold": 100,
+                "reject_threshold": -100
+              },
+              "interactions": {
+                "on_swipe_right": {
+                  "action": "approveAction",
+                  "haptic_feedback": "50ms",
+                  "visual_feedback": "green_background"
+                },
+                "on_swipe_left": {
+                  "action": "rejectAction",
+                  "haptic_feedback": "50ms",
+                  "visual_feedback": "red_background"
+                }
+              },
+              "styling": {
+                "transform_on_drag": true,
+                "background_color_on_drag": "conditional"
+              }
+            }
+          ]
+        },
+        {
+          "element_id": "chat_interface",
+          "type": "chat_container",
+          "subtype": "ai_conversation",
+          "position": {
+            "section": "chat_interface",
+            "order": 1
+          },
+          "properties": {
+            "max_height": "64px",
+            "auto_scroll": true,
+            "message_types": ["user", "agent"],
+            "real_time_responses": true
+          },
+          "elements": [
+            {
+              "element_id": "chat_messages_area",
+              "type": "scrollable_container",
+              "subtype": "message_list",
+              "properties": {
+                "max_height": "64px",
+                "overflow_y": "auto",
+                "webkit_overflow_scrolling": "touch"
+              }
+            },
+            {
+              "element_id": "message_input",
+              "type": "input",
+              "subtype": "text",
+              "position": {
+                "order": 1
+              },
+              "properties": {
+                "placeholder": "Typ je instructie...",
+                "enter_to_send": true
+              },
+              "interactions": {
+                "on_enter": {
+                  "action": "sendMessage",
+                  "clear_input": true
+                }
+              }
+            },
+            {
+              "element_id": "send_button",
+              "type": "button",
+              "subtype": "send",
+              "position": {
+                "order": 2,
+                "attachment": "input_right"
+              },
+              "properties": {
+                "icon": "Send",
+                "disabled_when": "!textInput.trim() || sendingMessage"
+              },
+              "interactions": {
+                "on_click": {
+                  "action": "sendMessage",
+                  "backend_call": {
+                    "endpoint": "/api/agent/chat",
+                    "method": "POST",
+                    "headers": {
+                      "Content-Type": "application/json"
+                    },
+                    "payload": {
+                      "message": "{{textInput}}",
+                      "sessionId": "session-{{timestamp}}",
+                      "context": {
+                        "business": {
+                          "name": "Mijn ZZP Bedrijf",
+                          "services": ["Webdevelopment", "Consultancy", "Design"],
+                          "pricing": {
+                            "webdevelopment": 75,
+                            "consultancy": 85,
+                            "design": 65
+                          }
+                        },
+                        "recentTranscriptions": "{{recentCallsContext}}",
+                        "activeActions": "{{pendingActions}}"
+                      }
+                    },
+                    "response_handling": {
+                      "success": {
+                        "add_to_chat": true,
+                        "generate_actions": "conditional",
+                        "haptic_feedback": "[100, 50, 100]"
+                      },
+                      "error": {
+                        "fallback_message": "Sorry, ik kan je bericht momenteel niet verwerken. Probeer het over een moment opnieuw."
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "element_id": "voice_input_button",
+              "type": "button",
+              "subtype": "voice_recorder",
+              "position": {
+                "order": 3
+              },
+              "properties": {
+                "icon": "Mic/MicOff",
+                "press_and_hold": true,
+                "voice_to_text": true
+              },
+              "interactions": {
+                "on_touch_start": {
+                  "action": "startVoiceRecording",
+                  "state_change": "isRecording = true"
+                },
+                "on_touch_end": {
+                  "action": "stopVoiceRecording",
+                  "state_change": "isRecording = false",
+                  "processing": "speech_to_text",
+                  "auto_send": true
+                }
+              },
+              "styling": {
+                "recording_state": {
+                  "background": "bg-red-500",
+                  "color": "text-white"
+                },
+                "default_state": {
+                  "background": "bg-blue-500",
+                  "color": "text-white"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "element_id": "quick_commands_section",
+          "type": "command_grid",
+          "subtype": "business_shortcuts",
+          "position": {
+            "section": "quick_commands",
+            "order": 1
+          },
+          "properties": {
+            "title": "Snelle Commando's",
+            "grid_columns": 2,
+            "commands": [
+              "Bel laatste klant",
+              "Stuur portfolio",
+              "Plan afspraak",
+              "Maak offerte"
+            ]
+          },
+          "elements": [
+            {
+              "element_id": "quick_command_button",
+              "type": "button",
+              "subtype": "predefined_command",
+              "interactions": {
+                "on_click": {
+                  "action": "executeQuickCommand",
+                  "send_to_agent": true
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "data_flow": {
+        "chat_persistence": {
+          "storage": "component_state",
+          "session_based": true
+        },
+        "actions_persistence": {
+          "storage": "component_state",
+          "filter_by_status": "pending"
+        }
+      },
+      "ai_integration": {
+        "provider": "OpenRouter",
+        "model": "Google Gemini 1.5 Flash 8B",
+        "context_awareness": true,
+        "action_generation": true,
+        "voice_processing": "client_side_simulation"
+      }
+    },
+    {
+      "screen_id": "transcriptions_screen",
+      "screen_name": "Transcriptions & Conversations",
+      "route": "/mobile-v3/transcriptions/",
+      "description": "Comprehensive voicemail and conversation management with threading, search, and detailed transcript viewing",
+      "layout": {
+        "type": "vertical_scroll_with_modals",
+        "sections": ["header", "stats_summary", "search_filters", "conversation_list", "modals", "navigation"]
+      },
+      "elements": [
+        {
+          "element_id": "transcriptions_header",
+          "type": "page_header",
+          "subtype": "with_stats",
+          "position": {
+            "section": "header",
+            "order": 1
+          },
+          "properties": {
+            "title": "Transcripties",
+            "show_back": true,
+            "stats_display": true
+          }
+        },
+        {
+          "element_id": "stats_summary_card",
+          "type": "stats_display",
+          "subtype": "conversation_metrics",
+          "position": {
+            "section": "stats_summary",
+            "order": 1
+          },
+          "properties": {
+            "metric": "active_conversations_today",
+            "icon": "Phone",
+            "refresh_button": true
+          },
+          "elements": [
+            {
+              "element_id": "refresh_button",
+              "type": "button",
+              "subtype": "icon_button",
+              "interactions": {
+                "on_click": {
+                  "action": "refreshTranscriptions",
+                  "loading_state": true,
+                  "icon_animation": "spin"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "element_id": "search_filters_section",
+          "type": "filter_controls",
+          "subtype": "search_and_time_filters",
+          "position": {
+            "section": "search_filters",
+            "order": 1
+          },
+          "elements": [
+            {
+              "element_id": "search_input",
+              "type": "input",
+              "subtype": "search",
+              "properties": {
+                "placeholder": "Zoek op naam of nummer...",
+                "icon": "Search",
+                "real_time_filter": true
+              },
+              "interactions": {
+                "on_change": {
+                  "action": "filterConversations",
+                  "debounce": 300,
+                  "real_time": true
+                }
+              }
+            },
+            {
+              "element_id": "time_filter_buttons",
+              "type": "button_group",
+              "subtype": "time_range_filter",
+              "properties": {
+                "options": ["Alle", "Vandaag", "Deze week"],
+                "single_select": true
+              },
+              "interactions": {
+                "on_select": {
+                  "action": "applyTimeFilter",
+                  "filter_function": "filterByDateRange"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "element_id": "conversation_threads_list",
+          "type": "threaded_list",
+          "subtype": "conversation_threads",
+          "position": {
+            "section": "conversation_list",
+            "order": 1
+          },
+          "properties": {
+            "threading": "by_phone_number",
+            "sorting": "by_last_call_time",
+            "virtualization": false,
+            "infinite_scroll": false
+          },
+          "elements": [
+            {
+              "element_id": "conversation_thread_item",
+              "type": "list_item",
+              "subtype": "threaded_conversation",
+              "properties": {
+                "avatar": "generated_from_name",
+                "multiple_calls_indicator": true,
+                "summary_display": "three_line_clamp",
+                "time_relative": true
+              },
+              "styling": {
+                "summary": {
+                  "display": "-webkit-box",
+                  "webkit_line_clamp": 3,
+                  "webkit_box_orient": "vertical",
+                  "overflow": "hidden",
+                  "text_align": "left",
+                  "line_height": "1.4",
+                  "font_size": "11px"
+                }
+              },
+              "interactions": {
+                "on_click": {
+                  "action": "openThreadDetail",
+                  "modal": "thread_detail_modal"
+                }
+              }
+            }
+          ],
+          "data_flow": {
+            "data_source": "filteredThreads",
+            "backend_call": {
+              "endpoint": "/api/transcriptions",
+              "method": "GET",
+              "cache_strategy": "fetch_on_mount",
+              "real_time_updates": false
+            }
+          }
+        },
+        {
+          "element_id": "thread_detail_modal",
+          "type": "modal",
+          "subtype": "slide_up_modal",
+          "position": {
+            "section": "modals",
+            "layer": "overlay"
+          },
+          "properties": {
+            "animation": "slide_from_bottom",
+            "max_height": "90vh",
+            "background_overlay": true
+          },
+          "elements": [
+            {
+              "element_id": "modal_header",
+              "type": "modal_header",
+              "subtype": "customer_info",
+              "elements": [
+                {
+                  "element_id": "customer_avatar",
+                  "type": "avatar",
+                  "subtype": "generated",
+                  "properties": {
+                    "size": "40px",
+                    "background": "gradient",
+                    "text": "first_letter"
+                  }
+                },
+                {
+                  "element_id": "customer_info",
+                  "type": "info_display",
+                  "properties": {
+                    "name": "{{thread.customerName}}",
+                    "phone": "{{thread.phoneNumber}}"
+                  }
+                },
+                {
+                  "element_id": "call_button",
+                  "type": "button",
+                  "subtype": "primary_action",
+                  "properties": {
+                    "text": "Bellen",
+                    "icon": "Phone"
+                  },
+                  "interactions": {
+                    "on_click": {
+                      "action": "initiateCall",
+                      "tel_link": "tel:{{thread.phoneNumber}}"
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "element_id": "call_history_list",
+              "type": "scrollable_list",
+              "subtype": "call_history",
+              "properties": {
+                "items": "thread.transcriptions",
+                "scrollable": true,
+                "touch_scrolling": true
+              },
+              "elements": [
+                {
+                  "element_id": "call_history_item",
+                  "type": "list_item",
+                  "subtype": "call_summary",
+                  "interactions": {
+                    "on_click": {
+                      "action": "openCallDetail",
+                      "modal": "call_detail_modal"
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "element_id": "call_detail_modal",
+          "type": "modal",
+          "subtype": "full_transcript_modal",
+          "position": {
+            "section": "modals",
+            "layer": "overlay_2"
+          },
+          "properties": {
+            "max_height": "90vh",
+            "scroll_behavior": "smooth",
+            "padding_bottom": "24px"
+          },
+          "elements": [
+            {
+              "element_id": "call_header",
+              "type": "modal_header",
+              "subtype": "call_info",
+              "properties": {
+                "direction_icon": "conditional",
+                "timestamp": "formatted",
+                "duration": "formatted"
+              }
+            },
+            {
+              "element_id": "summary_section",
+              "type": "content_section",
+              "subtype": "ai_summary",
+              "properties": {
+                "icon": "✨",
+                "title": "Samenvatting",
+                "style": "gradient_background"
+              }
+            },
+            {
+              "element_id": "full_transcript_section",
+              "type": "content_section",
+              "subtype": "message_transcript",
+              "properties": {
+                "title": "Volledig gesprek",
+                "message_count": "dynamic",
+                "scroll_to_bottom": true
+              },
+              "elements": [
+                {
+                  "element_id": "transcript_message",
+                  "type": "message_bubble",
+                  "subtype": "conversation_message",
+                  "properties": {
+                    "align": "conditional_on_role",
+                    "bubble_style": "modern",
+                    "timestamp": "optional"
+                  },
+                  "styling": {
+                    "agent_message": {
+                      "background": "bg-white",
+                      "border": "border-blue-200",
+                      "text_color": "text-gray-800",
+                      "alignment": "left"
+                    },
+                    "user_message": {
+                      "background": "bg-blue-600",
+                      "text_color": "text-white",
+                      "alignment": "right"
+                    }
+                  }
+                }
+              ]
+            }
+          ],
+          "scroll_behavior": {
+            "initial_position": "top",
+            "auto_scroll_to_bottom": false,
+            "padding_bottom": "24px",
+            "webkit_overflow_scrolling": "touch"
+          }
+        }
+      ],
+      "data_management": {
+        "conversation_threading": {
+          "group_by": "phone_number",
+          "sort_by": "last_call_time",
+          "merge_customer_data": true
+        },
+        "search_filtering": {
+          "fields": ["customerName", "phoneNumber", "companyName"],
+          "case_insensitive": true,
+          "real_time": true
+        },
+        "date_filtering": {
+          "options": ["all", "today", "week", "month"],
+          "timestamp_comparison": true
+        }
+      }
+    },
+    {
+      "screen_id": "mobile_login_screen",
+      "screen_name": "Mobile Login",
+      "route": "/mobile-v3/auth/login/",
+      "description": "Mobile-optimized login interface with gesture support and responsive design",
+      "layout": {
+        "type": "centered_form",
+        "sections": ["header", "login_form", "additional_options", "footer"]
+      },
+      "elements": [
+        {
+          "element_id": "mobile_login_form",
+          "type": "form",
+          "subtype": "authentication_form",
+          "position": {
+            "section": "login_form",
+            "order": 1
+          },
+          "elements": [
+            {
+              "element_id": "email_input_mobile",
+              "type": "input",
+              "subtype": "email",
+              "properties": {
+                "label": "Email adres",
+                "placeholder": "voer@email.in",
+                "required": true,
+                "autocomplete": "email",
+                "keyboard_type": "email"
+              },
+              "validation": {
+                "type": "email",
+                "regex": "^[^@]+@[^@]+\\.[^@]+$",
+                "error_message": "Ongeldig email adres",
+                "real_time": true
+              },
+              "styling": {
+                "mobile_optimized": true,
+                "touch_target": "min_44px",
+                "font_size": "16px"
+              }
+            },
+            {
+              "element_id": "password_input_mobile",
+              "type": "input",
+              "subtype": "password",
+              "properties": {
+                "label": "Wachtwoord",
+                "placeholder": "••••••••",
+                "required": true,
+                "show_toggle": true,
+                "autocomplete": "current-password"
+              }
+            },
+            {
+              "element_id": "login_submit_button",
+              "type": "button",
+              "subtype": "submit",
+              "properties": {
+                "text": "Inloggen",
+                "loading_text": "Bezig met inloggen...",
+                "full_width": true
+              },
+              "interactions": {
+                "on_click": {
+                  "action": "submitLogin",
+                  "validation_required": true,
+                  "backend_call": {
+                    "endpoint": "/api/auth/login",
+                    "method": "POST",
+                    "payload": {
+                      "email": "{{email}}",
+                      "password": "{{password}}"
+                    },
+                    "response_handling": {
+                      "success": {
+                        "store_session": true,
+                        "redirect_to": "/mobile-v3/",
+                        "toast_message": "Succesvol ingelogd"
+                      },
+                      "error": {
+                        "401": "Onjuiste inloggegevens",
+                        "429": "Te veel pogingen, probeer later opnieuw"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        },
+        {
+          "element_id": "forgot_password_link",
+          "type": "link",
+          "subtype": "text_link",
+          "position": {
+            "section": "additional_options",
+            "order": 1
+          },
+          "properties": {
+            "text": "Wachtwoord vergeten?",
+            "route": "/mobile-v3/auth/forgot-password/"
+          }
+        }
+      ],
+      "mobile_optimizations": {
+        "keyboard_handling": {
+          "adjust_viewport": true,
+          "scroll_to_input": true
+        },
+        "touch_optimizations": {
+          "tap_targets": "minimum_44px",
+          "gesture_recognition": true
+        }
+      }
+    }
+  ],
+  "global_components": [
+    {
+      "component_id": "bottom_navigation",
+      "type": "navigation",
+      "subtype": "tab_bar",
+      "appears_on_screens": [
+        "mobile_home_dashboard",
+        "agent_assistant_screen", 
+        "transcriptions_screen",
+        "analytics_screen",
+        "profile_screen"
+      ],
+      "elements": [
+        {
+          "element_id": "home_tab",
+          "type": "nav_tab",
+          "properties": {
+            "text": "Home",
+            "icon": "Home",
+            "route": "/mobile-v3/",
+            "active_when": "current_route === '/mobile-v3/'"
+          }
+        },
+        {
+          "element_id": "agent_tab",
+          "type": "nav_tab",
+          "properties": {
+            "text": "Assistant",
+            "icon": "Bot",
+            "route": "/mobile-v3/agent/",
+            "active_when": "current_route.startsWith('/mobile-v3/agent')"
+          }
+        },
+        {
+          "element_id": "transcriptions_tab",
+          "type": "nav_tab",
+          "properties": {
+            "text": "Gesprekken",
+            "icon": "MessageSquare",
+            "route": "/mobile-v3/transcriptions/",
+            "active_when": "current_route.startsWith('/mobile-v3/transcriptions')"
+          }
+        },
+        {
+          "element_id": "analytics_tab",
+          "type": "nav_tab",
+          "properties": {
+            "text": "Analytics",
+            "icon": "BarChart3", 
+            "route": "/mobile-v3/analytics/",
+            "active_when": "current_route.startsWith('/mobile-v3/analytics')"
+          }
+        },
+        {
+          "element_id": "profile_tab",
+          "type": "nav_tab",
+          "properties": {
+            "text": "Profiel",
+            "icon": "User",
+            "route": "/mobile-v3/profile/",
+            "active_when": "current_route.startsWith('/mobile-v3/profile')"
+          }
+        }
+      ],
+      "styling": {
+        "position": "fixed_bottom",
+        "height": "80px",
+        "background": "var(--card-background)",
+        "border_top": "1px solid var(--card-border)",
+        "shadow": "0 -1px 8px rgba(0, 0, 0, 0.04)"
+      }
+    },
+    {
+      "component_id": "mobile_header",
+      "type": "header",
+      "subtype": "app_header",
+      "appears_on_screens": "all_mobile_screens",
+      "elements": [
+        {
+          "element_id": "back_button",
+          "type": "button", 
+          "subtype": "icon_button",
+          "properties": {
+            "icon": "ArrowLeft",
+            "show_when": "showBack === true"
+          },
+          "interactions": {
+            "on_click": {
+              "action": "navigateBack",
+              "method": "router.back()"
+            }
+          }
+        },
+        {
+          "element_id": "page_title",
+          "type": "text",
+          "subtype": "heading",
+          "properties": {
+            "dynamic": true,
+            "font_weight": "semibold"
+          }
+        },
+        {
+          "element_id": "notification_button",
+          "type": "button",
+          "subtype": "icon_with_badge",
+          "properties": {
+            "icon": "Bell",
+            "badge": "conditional",
+            "show_when": "showNotifications === true"
+          }
+        }
+      ]
+    }
+  ],
+  "state_management": {
+    "global_state": {
+      "currentUser": {
+        "type": "object",
+        "properties": ["id", "email", "name", "role"],
+        "persistence": "session_storage"
+      },
+      "authToken": {
+        "type": "string",
+        "persistence": "cookies",
+        "expiration": "7_days"
+      },
+      "forwardingStatus": {
+        "type": "object",
+        "properties": ["status", "lastChecked"],
+        "persistence": "local_storage",
+        "expiration": "24_hours"
+      },
+      "conversationThreads": {
+        "type": "array",
+        "persistence": "component_state",
+        "refresh_strategy": "on_focus"
+      }
+    },
+    "authentication": {
+      "strategy": "supabase_with_cookies",
+      "fallback": "cookie_based",
+      "session_management": "hybrid"
+    }
+  },
+  "api_endpoints": [
+    {
+      "endpoint": "/api/transcriptions",
+      "method": "GET",
+      "description": "Fetch voicemail transcriptions and conversation data from Supabase",
+      "request_schema": {
+        "clientId": "string",
+        "t": "number (timestamp)"
+      },
+      "response_schema": {
+        "transcriptions": [
+          {
+            "id": "string",
+            "customerName": "string",
+            "customer_name": "string",
+            "phoneNumber": "string",
+            "caller_phone": "string",
+            "transcriptSummary": "string",
+            "transcript": ["array"],
+            "startTime": "number",
+            "callDuration": "number",
+            "callDirection": "string"
+          }
+        ]
+      },
+      "authentication": "required",
+      "rate_limiting": "100 requests per minute"
+    },
+    {
+      "endpoint": "/api/agent/chat",
+      "method": "POST", 
+      "description": "AI agent chat endpoint using OpenRouter with Google Gemini 1.5 Flash 8B",
+      "request_schema": {
+        "message": "string",
+        "sessionId": "string",
+        "context": {
+          "business": "object",
+          "recentTranscriptions": "array",
+          "activeActions": "array"
+        }
+      },
+      "response_schema": {
+        "message": "string",
+        "actions": [
+          {
+            "type": "string",
+            "title": "string", 
+            "description": "string",
+            "customerName": "string",
+            "priority": "string"
+          }
+        ]
+      },
+      "authentication": "required",
+      "external_service": "OpenRouter API",
+      "model": "Google Gemini 1.5 Flash 8B"
+    },
+    {
+      "endpoint": "/api/user/profile",
+      "method": "GET/PUT",
+      "description": "User profile management with Prisma database",
+      "authentication": "required",
+      "database": "Prisma (PostgreSQL)"
+    },
+    {
+      "endpoint": "/api/checkout",
+      "method": "POST",
+      "description": "Stripe checkout session creation",
+      "external_service": "Stripe",
+      "authentication": "required"
+    },
+    {
+      "endpoint": "/api/webhook/stripe",
+      "method": "POST",
+      "description": "Stripe webhook processing for subscription events",
+      "authentication": "webhook_signature",
+      "external_service": "Stripe"
+    }
+  ],
+  "mobile_specific_features": {
+    "gesture_controls": {
+      "swipe_actions": {
+        "approve_reject_actions": "horizontal_swipe",
+        "navigation": "vertical_swipe",
+        "pull_to_refresh": "vertical_pull"
+      },
+      "touch_interactions": {
+        "press_and_hold": "voice_recording",
+        "tap_feedback": "haptic_simulation",
+        "long_press": "context_menu"
+      }
+    },
+    "responsive_design": {
+      "breakpoints": {
+        "fold_closed": "max-width: 280px",
+        "fold_open": "max-width: 320px", 
+        "regular_mobile": "max-width: 768px"
+      },
+      "adaptive_typography": {
+        "samsung_fold": "reduced_font_sizes",
+        "spacing": "compact_on_narrow_screens"
+      }
+    },
+    "pwa_features": {
+      "service_worker": "minimal_compliance",
+      "app_manifest": "installable",
+      "offline_support": "basic"
+    },
+    "accessibility": {
+      "touch_targets": "minimum_44px",
+      "keyboard_navigation": "full_support",
+      "screen_reader": "aria_labels_provided",
+      "reduced_motion": "respects_user_preference"
+    }
+  },
+  "design_system": {
+    "color_palette": {
+      "primary": "#00BCD4",
+      "secondary": "#1DE9B6", 
+      "accent": "#FF9800",
+      "background": "#F8FAFB",
+      "surface": "#FFFFFF",
+      "text_primary": "#004D40",
+      "text_secondary": "#757575"
+    },
+    "typography": {
+      "font_family": "Inter, -apple-system, sans-serif",
+      "scale": {
+        "h1": "32px",
+        "h2": "24px", 
+        "h3": "20px",
+        "body": "16px",
+        "small": "14px"
+      }
+    },
+    "spacing": {
+      "xs": "4px",
+      "sm": "8px",
+      "md": "16px", 
+      "lg": "24px",
+      "xl": "32px"
+    },
+    "animations": {
+      "default_transition": "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+      "fast_transition": "all 0.15s ease-out",
+      "hover_lift": "translateY(-1px)",
+      "press_scale": "scale(0.98)"
+    }
+  }
+}

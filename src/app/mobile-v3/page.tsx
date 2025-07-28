@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Phone, Clock, TrendingUp, Calendar, Settings, User, BarChart3, PlayCircle, PhoneForwarded, PhoneOff, PhoneMissed, X, Loader2, Bell, BellRing, Trash2, Check, CheckCircle } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'react-toastify';
 import Header from '@/components/mobile-v3/Header';
 import BottomNavigation from '@/components/mobile-v3/BottomNavigation';
@@ -86,6 +86,7 @@ export default function MobileHomePage() {
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [pendingStatusCheck, setPendingStatusCheck] = useState<{type: string, statusCode: string} | null>(null);
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   // Fetch user data when authentication state changes
   useEffect(() => {
@@ -159,6 +160,32 @@ export default function MobileHomePage() {
       setActiveForwardingType(savedActiveType);
     }
   }, []);
+
+  // Check for new user onboarding
+  useEffect(() => {
+    const checkUserOnboarding = async () => {
+      if (!authLoading && isAuthenticated && user?.id) {
+        try {
+          // Check if wizard needs to be shown for incomplete profiles
+          const response = await fetch('/api/user/profile');
+          const profileData = await response.json();
+          
+          const wizardShown = localStorage.getItem('wizardComplete');
+          
+          if (!wizardShown && (!profileData.name || !profileData.mobileNumber)) {
+            // Show wizard after slight delay
+            setTimeout(() => {
+              router.push('/mobile-v3/profile?wizard=true&source=onboarding');
+            }, 1500);
+          }
+        } catch (error) {
+          console.log('Skipping automatic wizard for now', error);
+        }
+      }
+    };
+
+    checkUserOnboarding();
+  }, [authLoading, isAuthenticated, user?.id, router]);
 
   // Update forwarding status with mutual exclusivity
   const updateForwardingStatus = (type: string, status: string, isActivation: boolean = false) => {
@@ -347,6 +374,21 @@ export default function MobileHomePage() {
     const timer = setInterval(() => setCurrentTime(new Date()), 60000);
     return () => clearInterval(timer);
   }, []);
+
+  // Handle Stripe return callback
+  useEffect(() => {
+    const source = searchParams.get('source');
+    if (source === 'stripe') {
+      // Clear the parameter and refresh data
+      const url = new URL(window.location.href);
+      url.searchParams.delete('source');
+      window.history.replaceState({}, '', url.toString());
+    }
+  }, [searchParams]);
+
+  const handleLaunchWizard = () => {
+    router.push('/mobile-v3/profile?wizard=true');
+  };
 
   const getGreeting = () => {
     const hour = currentTime.getHours();
@@ -1247,6 +1289,27 @@ export default function MobileHomePage() {
 
       <BottomNavigation />
       <AuthDebugInfo />
+
+      {/* Subtle Wizard Trigger */}
+      <motion.button
+        initial={{ scale: 0, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        whileTap={{ scale: 0.92 }}
+        onClick={handleLaunchWizard}
+        className="fixed bottom-20 right-4 p-3 rounded-full shadow-lg text-white"
+        title="Setup Wizard starten"
+        style={{ 
+          backgroundColor: 'var(--color-primary)',
+          zIndex: 40,
+          transition: 'opacity 0.3s ease'
+        }}
+        aria-label="Setup Wizard starten"
+      >
+        <div className="flex items-center gap-2">
+          <Settings size={20} />
+          <span className="text-xs font-medium hidden">Wizard</span>
+        </div>
+      </motion.button>
     </div>
   );
 }

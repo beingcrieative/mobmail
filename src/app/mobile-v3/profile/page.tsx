@@ -117,6 +117,7 @@ function ProfilePageContent() {
 
   const handleWizardComplete = () => {
     setShowWizard(false);
+    localStorage.setItem('wizardComplete', 'true');
     // Refresh profile data after wizard completion
     window.location.reload();
   };
@@ -210,18 +211,6 @@ function ProfilePageContent() {
       label: 'Voicemail instellingen', 
       sublabel: 'Configureer je voicemail',
       action: () => router.push('/mobile-v3/settings/voicemail')
-    },
-    { 
-      icon: Shield, 
-      label: 'Privacy & Beveiliging', 
-      sublabel: 'Beheer je privacy instellingen',
-      action: () => router.push('/mobile-v3/settings/privacy')
-    },
-    { 
-      icon: Calendar, 
-      label: 'Kalender integratie', 
-      sublabel: 'Cal.com en andere kalenders',
-      action: () => router.push('/mobile-v3/settings/calendar')
     }
   ];
 
@@ -354,7 +343,24 @@ function ProfilePageContent() {
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
             <motion.button
               whileTap={{ scale: 0.98 }}
-              onClick={() => router.push('/dashboard/subscription')}
+              onClick={async () => {
+                try {
+                  const response = await fetch('/api/subscriptions/create-portal-session', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                      userId: userId, 
+                      returnUrl: window.location.origin + '/mobile-v3/profile?source=stripe' 
+                    })
+                  });
+                  
+                  const { url } = await response.json();
+                  window.location.href = url;
+                } catch (error) {
+                  console.error('Error creating Stripe portal:', error);
+                  router.push('/mobile-v3/subscription');
+                }
+              }}
               className="w-full flex items-center p-4 text-left hover:bg-gray-50 transition-colors border-b border-gray-100"
             >
               <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center mr-3">
@@ -362,7 +368,7 @@ function ProfilePageContent() {
               </div>
               <div className="flex-1">
                 <p className="font-medium text-gray-900">Abonnement beheren</p>
-                <p className="text-sm text-gray-500">Wijzig je abonnement</p>
+                <p className="text-sm text-gray-500">Bekijk en beheer je abonnement via Stripe</p>
               </div>
               <ChevronRight size={18} className="text-gray-400" />
             </motion.button>
