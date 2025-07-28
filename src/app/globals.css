@@ -1,25 +1,51 @@
 @import "tailwindcss";
 
 :root {
-  /* Glassmorphism Design System - Verfijnde Diepte */
+  /* Dutch Authority Design System - ZZP Business Professional */
+  /* Nederlandse ZZP'ers - Trust & Business Authority */
   
-  /* Colors - BlaBlaCar Inspired Palette */
-  --color-primary: #00BCD4;
-  --color-secondary: #1DE9B6;
-  --color-background: #F8FAFB;
-  --color-surface: #FFFFFF;
-  --color-accent: #FF9800;
+  /* AUTHORITY ZONE - Dutch Business Professional */
+  --va-navy: #0F172A;           /* Primary - Dutch corporate authority */
+  --va-slate: #475569;          /* Secondary - Sophisticated business */
+  --va-gray-silver: #94A3B8;     /* Tertiary - Neutral business tone */
   
-  /* Text Colors - BlaBlaCar Style */
-  --color-text-primary: #004D40;
-  --color-text-secondary: #757575;
-  --color-text-muted: #BDBDBD;
-  --color-text-white: #FFFFFF;
+  /* Professional Deep Tones */
+  --va-charcoal: #1E293B;       /* Headers and titles */
+  --va-midnight: #334155;       /* Secondary text */
+  --va-steel: #64748B;         /* Muted elements */
+  --va-light-gray: #CBD5E1;    /* Borders and separators */
   
-  /* Accent Colors */
-  --color-success: #10B981;
-  --color-warning: #F59E0B;
-  --color-error: #EF4444;
+  /* Clean Interface Colors */
+  --va-clean-white: #FFFFFF;      /* Pure white surfaces */
+  --va-clean-light: #F8FAFC;    /* Subtle backgrounds */
+  --va-clean-extra: #F1F5F9;     /* Very light backgrounds */
+  --va-clean-border: #E2E8F0;    /* Professional dividers */
+  
+  /* Brand Accent Colors */
+  --va-business-blue: #2563E8;   /* CTAs and primary actions */
+  --va-trust-blue: #1D4ED8;      /* Stronger CTAs */
+  --va-success-green: #10B981;     /* Limited success states */
+  --va-business-orange: #EA580C;  /* Construction/industrial */
+  
+  /* Semantic Color Mapping for Business Authority */
+  --color-primary: var(--va-business-blue);           /* Primary actions */
+  --color-secondary: var(--va-slate);                /* Secondary elements */
+  --color-background: var(--va-clean-white);          /* Clean professional */
+  --color-surface: var(--va-clean-white);           /* Card surfaces */
+  --color-accent: var(--va-success-green);           /* Success accents */
+  
+  /* Text Colors - Business Professional */
+  --color-text-primary: var(--va-navy);         /* Primary text - business authority */
+  --color-text-secondary: var(--va-slate);        /* Secondary content */
+  --color-text-muted: var(--va-steel);            /* Muted content */
+  --color-text-white: #FFFFFF;                    /* White text */
+  
+  /* Business Success Colors */
+  --color-success: var(--va-success-green);           /* Success states */
+  --color-info: var(--va-business-blue);               /* Information */
+  --color-professional: var(--va-navy);           /* Professional elements */
+  --color-warning: #F59E0B;                       /* Warnings */
+  --color-error: #EF4444;                         /* Errors */
   
   /* Typography */
   --font-family-primary: 'Inter', -apple-system, sans-serif;
@@ -48,20 +74,32 @@
   --spacing-fold-lg: 8px;
   
   /* Professional Card Effects */
-  --card-background: #FFFFFF;
-  --background-subtle: #F8FAFB;
-  --background-clean: #FFFFFF;
-  --card-border: rgba(0, 0, 0, 0.08);
-  --card-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
-  --card-shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.08);
-  --accent-gradient: linear-gradient(135deg, #00BCD4 0%, #1DE9B6 100%);
+  --card-background: var(--va-clean-white);
+  --background-subtle: var(--va-clean-light);
+  --background-clean: var(--va-clean-white);
+  --card-border: rgba(15, 23, 42, 0.08);
+  --card-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+  --card-shadow-hover: 0 4px 12px rgba(15, 23, 42, 0.08);
+  /* Dutch Authority Background Gradients */
+  --va-bg-home: linear-gradient(135deg, #FFFFFF 0%, #F8FAFC 100%);
+  --va-bg-conversations: linear-gradient(135deg, #F8FAFC 0%, #F1F5F9 100%);
+  --va-bg-assistant: linear-gradient(135deg, #FFFFFF 0%, #F8FAFC 100%);
+  --va-bg-login: linear-gradient(135deg, #F1F5F9 0%, #E2E8F0 100%);
   
-  /* Shadows */
-  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.04);
-  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.08);
-  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.12);
-  --shadow-primary: 0 2px 8px rgba(74, 144, 226, 0.3);
-  --shadow-primary-hover: 0 4px 12px rgba(74, 144, 226, 0.4);
+  /* Business Gradient System */
+  --va-gradient-success: linear-gradient(135deg, var(--va-success-green) 0%, var(--va-navy) 100%);
+  --va-gradient-professional: linear-gradient(135deg, var(--va-business-blue) 0%, var(--va-navy) 100%);
+  --va-gradient-welcome: linear-gradient(135deg, var(--va-business-blue) 0%, var(--va-trust-blue) 100%);
+  
+  /* Legacy gradient updated */
+  --accent-gradient: var(--va-gradient-success);
+  
+  /* Professional Shadows */
+  --shadow-sm: 0 2px 8px rgba(15, 23, 42, 0.04);
+  --shadow-md: 0 4px 16px rgba(15, 23, 42, 0.08);
+  --shadow-lg: 0 8px 24px rgba(15, 23, 42, 0.12);
+  --shadow-primary: 0 2px 8px rgba(37, 99, 232, 0.3);
+  --shadow-primary-hover: 0 4px 12px rgba(37, 99, 232, 0.4);
   
   /* Border Radius */
   --radius-sm: 8px;
@@ -87,15 +125,21 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    /* Dark mode - maintain glassmorphism with darker tones */
-    --color-background: #0F1419;
-    --color-surface: #1A1F2E;
-    --glass-background: rgba(26, 31, 46, 0.7);
-    --glass-background-strong: rgba(26, 31, 46, 0.9);
-    --glass-background-light: rgba(26, 31, 46, 0.6);
-    --color-text-primary: #FFFFFF;
-    --color-text-secondary: #B4BCC8;
-    --color-text-muted: #8B949E;
+    /* Dutch Authority Dark Mode - Professional High Contrast */
+    --color-background: var(--va-navy);               /* Deep navy */
+    --color-surface: #1E293B;                      /* Charcoal surface */
+    --glass-background: rgba(30, 41, 59, 0.7);      /* Slate glass */
+    --glass-background-strong: rgba(30, 41, 59, 0.9);
+    --glass-background-light: rgba(30, 41, 59, 0.6);
+    --color-text-primary: #FFFFFF;                  /* White text */
+    --color-text-secondary: #F1F5F9;               /* Light gray */
+    --color-text-muted: #CBD5E1;                   /* Muted text */
+    
+    /* Dutch Authority Dark Gradients */
+    --va-bg-home: linear-gradient(135deg, #1E293B 0%, var(--va-navy) 100%);
+    --va-bg-conversations: linear-gradient(135deg, #1E293B 0%, var(--va-navy) 100%);
+    --va-bg-assistant: linear-gradient(135deg, #1E293B 0%, var(--va-navy) 100%);
+    --va-bg-login: linear-gradient(135deg, #334155 0%, var(--va-navy) 100%);
     
     /* Legacy support */
     --background: var(--color-background);
