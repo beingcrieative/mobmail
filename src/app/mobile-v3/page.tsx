@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Phone, Clock, TrendingUp, Calendar, Settings, User, BarChart3, PlayCircle, PhoneForwarded, PhoneOff, PhoneMissed, X, Loader2, Bell, BellRing, Trash2, Check, CheckCircle } from 'lucide-react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { toast } from 'react-toastify';
 import Header from '@/components/mobile-v3/Header';
 import BottomNavigation from '@/components/mobile-v3/BottomNavigation';
@@ -86,7 +86,6 @@ export default function MobileHomePage() {
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [pendingStatusCheck, setPendingStatusCheck] = useState<{type: string, statusCode: string} | null>(null);
   const router = useRouter();
-  const searchParams = useSearchParams();
 
   // Fetch user data when authentication state changes
   useEffect(() => {
@@ -375,16 +374,20 @@ export default function MobileHomePage() {
     return () => clearInterval(timer);
   }, []);
 
-  // Handle Stripe return callback
+  // Handle Stripe return callback - only run on client side
   useEffect(() => {
-    const source = searchParams.get('source');
-    if (source === 'stripe') {
-      // Clear the parameter and refresh data
-      const url = new URL(window.location.href);
-      url.searchParams.delete('source');
-      window.history.replaceState({}, '', url.toString());
+    // Only run on client side to avoid SSR issues
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const source = urlParams.get('source');
+      if (source === 'stripe') {
+        // Clear the parameter and refresh data
+        const url = new URL(window.location.href);
+        url.searchParams.delete('source');
+        window.history.replaceState({}, '', url.toString());
+      }
     }
-  }, [searchParams]);
+  }, []); // No dependencies needed since we check window.location directly
 
   const handleLaunchWizard = () => {
     router.push('/mobile-v3/profile?wizard=true');
