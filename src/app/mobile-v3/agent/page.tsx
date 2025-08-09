@@ -2,10 +2,9 @@
 
 // Disable pre-rendering to avoid CSR bailout errors with useSearchParams during static export
 export const dynamic = 'force-dynamic';
-export const revalidate = 0;
 export const fetchCache = 'force-no-store';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
 import { 
   Mic, 
@@ -50,7 +49,7 @@ interface ChatMessage {
   timestamp: number;
 }
 
-export default function AgentAssistantPage() {
+function AgentAssistantContent() {
   const [assistantActive, setAgentActive] = useState(true);
   const [actions, setActions] = useState<AssistantAction[]>([]);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
@@ -736,6 +735,21 @@ export default function AgentAssistantPage() {
 
       {!isOnboarding && <BottomNavigation />}
     </div>
+  );
+}
+
+export default function AgentAssistantPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--va-bg-home)' }}>
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4" style={{ color: 'var(--color-primary)' }} />
+          <p style={{ color: 'var(--color-text-secondary)' }}>Assistant laden...</p>
+        </div>
+      </div>
+    }>
+      <AgentAssistantContent />
+    </Suspense>
   );
 }
 
