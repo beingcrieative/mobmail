@@ -1,5 +1,10 @@
 'use client';
 
+// Disable pre-rendering to avoid CSR bailout errors with useSearchParams during static export
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+export const fetchCache = 'force-no-store';
+
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
 import { 
