@@ -203,7 +203,7 @@ export class MobileService {
     this.updateOrCreateMetaTag('mobile-web-app-capable', 'yes');
 
     // Theme color
-    this.updateOrCreateMetaTag('theme-color', '#00BCD4');
+    this.updateOrCreateMetaTag('theme-color', '#2563E8');
 
     // Custom meta tags
     Object.entries(config.customMetaTags).forEach(([name, content]) => {

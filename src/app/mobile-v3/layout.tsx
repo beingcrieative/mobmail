@@ -69,6 +69,7 @@ export default function MobileLayout({ children }: MobileLayoutProps) {
       customMetaTags: {
         'apple-mobile-web-app-title': 'VoicemailAI',
         'application-name': 'VoicemailAI',
+        'color-scheme': 'light dark',
         'viewport': isNarrowDevice 
           ? 'width=device-width, initial-scale=1.0, maximum-scale=3.0, user-scalable=yes, viewport-fit=cover'
           : 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover',
@@ -81,8 +82,8 @@ export default function MobileLayout({ children }: MobileLayoutProps) {
       name: 'VoicemailAI Mobile',
       shortName: 'VoicemailAI',
       description: 'AI-powered voicemail management',
-      themeColor: '#00BCD4',
-      backgroundColor: '#F8FAFB',
+      themeColor: '#2563E8',
+      backgroundColor: '#0F172A',
       display: 'standalone',
       orientation: 'portrait',
       scope: '/mobile-v3/',

@@ -1,6 +1,9 @@
 @import "tailwindcss";
 
 :root {
+  /* Color scheme support for system dark mode */
+  color-scheme: light dark;
+  
   /* Dutch Authority Design System - ZZP Business Professional */
   /* Nederlandse ZZP'ers - Trust & Business Authority */
   
@@ -136,6 +139,14 @@
     --color-text-primary: #FFFFFF;                  /* White text */
     --color-text-secondary: #F1F5F9;               /* Light gray */
     --color-text-muted: #CBD5E1;                   /* Muted text */
+    
+    /* Dark mode card and surface colors */
+    --card-background: #1E293B;                    /* Dark card background */
+    --background-subtle: #334155;                  /* Subtle backgrounds */
+    --background-clean: #1E293B;                   /* Clean backgrounds */
+    --card-border: rgba(148, 163, 184, 0.2);       /* Subtle borders */
+    --card-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);   /* Darker shadows */
+    --card-shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.4);
     
     /* Dutch Authority Dark Gradients */
     --va-bg-home: linear-gradient(135deg, #1E293B 0%, var(--va-navy) 100%);
@@ -417,7 +428,7 @@ body {
 }
 
 .va-section-card {
-  background: #ffffff;
+  background: var(--card-background);
   border: 1px solid var(--card-border);
   border-radius: var(--radius-md);
   box-shadow: var(--card-shadow);
