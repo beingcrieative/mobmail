@@ -184,10 +184,7 @@ function AgentAssistantContent() {
     setChatMessages(prev => [...prev, userMessage]);
     setTextInput('');
     // Auto-scroll to bottom after sending
-    setTimeout(() => {
-      const el = document.getElementById('chat-scroll-container');
-      if (el) el.scrollTop = el.scrollHeight;
-    }, 50);
+    scrollToBottom(100);
     
     try {
       const businessContext = {
@@ -533,10 +530,10 @@ function AgentAssistantContent() {
             className="space-y-4"
           >
             {/* Chat Messages */}
-            <div className="va-section-card p-4">
+            <div className="va-section-card p-4 flex flex-col" style={{ height: isOnboarding ? '75dvh' : '50dvh' }}>
               {/* Onboarding status chip */}
               {isOnboarding && (
-                <div className="mb-3 flex items-center justify-between text-xs px-3 py-2 rounded-lg"
+                <div className="mb-3 flex items-center justify-between text-xs px-3 py-2 rounded-lg flex-shrink-0"
                      style={{ background: 'var(--background-subtle)', border: '1px solid var(--card-border)', color: 'var(--color-text-primary)' }}>
                   <span>Onboarding actief</span>
                   <span>{onboardingProgress.collected}/{onboardingTargetFields.length} verzameld</span>
@@ -544,9 +541,12 @@ function AgentAssistantContent() {
               )}
 
               <div
-                className="overflow-y-auto mb-4 space-y-3"
+                className="overflow-y-auto mb-4 space-y-3 flex-1"
                 id="chat-scroll-container"
-                style={{ maxHeight: isOnboarding ? '65dvh' : '16rem' }}
+                style={{ 
+                  scrollBehavior: 'smooth',
+                  overscrollBehavior: 'contain'
+                }}
               >
                 {chatMessages.map((message) => (
                   <div key={message.id} className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}>
@@ -570,8 +570,8 @@ function AgentAssistantContent() {
                 )}
               </div>
 
-              {/* Input Area */}
-              <div className="flex items-center gap-2">
+              {/* Input Area - Fixed to bottom */}
+              <div className="flex items-center gap-2 flex-shrink-0 sticky bottom-0 bg-inherit p-2 -mx-2 -mb-2" style={{ background: 'var(--card-background)' }}>
                 <motion.button
                   whileTap={{ scale: 0.95 }}
                   onClick={isRecording ? handleVoiceStop : handleVoiceStart}
@@ -593,12 +593,25 @@ function AgentAssistantContent() {
                   placeholder="Vraag je business AI om hulp..."
                   value={textInput}
                   onChange={(e) => setTextInput(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleSendMessage(textInput)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleSendMessage(textInput);
+                    }
+                  }}
+                  onFocus={() => {
+                    // Scroll to bottom when input is focused (keyboard opens)
+                    setTimeout(() => {
+                      const el = document.getElementById('chat-scroll-container');
+                      if (el) el.scrollTop = el.scrollHeight;
+                    }, 300);
+                  }}
                   className="flex-1 px-3 py-2 rounded-lg focus:outline-none"
                   style={{
                     border: '1px solid var(--card-border)',
-                    background: 'white',
-                    color: 'var(--color-text-primary)'
+                    background: 'var(--card-background)',
+                    color: 'var(--color-text-primary)',
+                    fontSize: '16px' // Prevents zoom on iOS
                   }}
                 />
 
@@ -737,6 +750,19 @@ function AgentAssistantContent() {
     </div>
   );
 }
+
+// Utility function for smooth scrolling to bottom
+const scrollToBottom = (delay = 100) => {
+  setTimeout(() => {
+    const el = document.getElementById('chat-scroll-container');
+    if (el) {
+      el.scrollTo({
+        top: el.scrollHeight,
+        behavior: 'smooth'
+      });
+    }
+  }, delay);
+};
 
 export default function AgentAssistantPage() {
   return (

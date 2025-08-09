@@ -370,6 +370,9 @@ body {
   background: var(--va-bg-home);
   display: flex;
   flex-direction: column;
+  /* Handle virtual keyboard on mobile */
+  height: 100dvh;
+  overflow: hidden;
 }
 
 .mobile-status-bar {
@@ -384,6 +387,8 @@ body {
 .mobile-content {
   flex: 1 1 auto;
   padding-bottom: calc(env(safe-area-inset-bottom) + 96px);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .mobile-bottom-nav {
@@ -432,4 +437,31 @@ body {
   border: 1px solid var(--card-border);
   border-radius: var(--radius-md);
   box-shadow: var(--card-shadow);
+}
+
+/* Chat-specific improvements for keyboard handling */
+.chat-container {
+  position: relative;
+  overflow: hidden;
+}
+
+.chat-messages {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+  overscroll-behavior: contain;
+}
+
+.chat-input-area {
+  position: sticky;
+  bottom: 0;
+  backdrop-filter: blur(8px);
+  border-top: 1px solid var(--card-border);
+}
+
+/* Virtual keyboard support */
+@supports (height: 100dvh) {
+  .chat-container {
+    max-height: 100dvh;
+  }
 }
