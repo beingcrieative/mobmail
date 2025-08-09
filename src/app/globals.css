@@ -87,9 +87,11 @@
   --va-bg-login: linear-gradient(135deg, #F1F5F9 0%, #E2E8F0 100%);
   
   /* Business Gradient System */
-  --va-gradient-success: linear-gradient(135deg, var(--va-success-green) 0%, var(--va-navy) 100%);
-  --va-gradient-professional: linear-gradient(135deg, var(--va-business-blue) 0%, var(--va-navy) 100%);
-  --va-gradient-welcome: linear-gradient(135deg, var(--va-business-blue) 0%, var(--va-trust-blue) 100%);
+  /* Prefer flat design; keep gradients minimal/subtle for legacy areas */
+  --va-gradient-success: linear-gradient(135deg, var(--va-success-green) 0%, var(--va-success-green) 0%);
+  --va-gradient-professional: linear-gradient(135deg, var(--va-business-blue) 0%, var(--va-business-blue) 0%);
+  --va-gradient-welcome: linear-gradient(135deg, #EEF2FF 0%, #EEF2FF 100%);
+  --va-hero-bg: #EEF2FF; /* light primary tint for flat hero */
   
   /* Legacy gradient updated */
   --accent-gradient: var(--va-gradient-success);
@@ -349,4 +351,74 @@ body {
     transition: none;
     transform: none;
   }
+}
+
+/* Mobile App Container & Safe Areas */
+.mobile-app-container {
+  min-height: 100dvh;
+  background: var(--va-bg-home);
+  display: flex;
+  flex-direction: column;
+}
+
+.mobile-status-bar {
+  height: 20px;
+  background: linear-gradient(180deg, rgba(0,0,0,0.08) 0%, rgba(0,0,0,0) 100%);
+  padding: 0 var(--spacing-md);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.mobile-content {
+  flex: 1 1 auto;
+  padding-bottom: calc(env(safe-area-inset-bottom) + 96px);
+}
+
+.mobile-bottom-nav {
+  padding-bottom: calc(env(safe-area-inset-bottom) + 0px);
+}
+
+/* Enhanced Header */
+.va-header {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  background: linear-gradient(135deg, rgba(37, 99, 232, 0.06) 0%, rgba(29, 78, 216, 0.08) 100%);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.va-header-title {
+  font-size: var(--font-size-h2);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+  font-family: var(--font-family-primary);
+}
+
+.va-header-subtitle {
+  font-size: var(--font-size-small);
+  color: var(--color-text-muted);
+}
+
+/* Bottom Navigation - pill active */
+.va-nav-pill {
+  background: rgba(37, 99, 232, 0.10);
+  border: 1px solid rgba(37, 99, 232, 0.15);
+}
+
+.va-hero {
+  margin: 0 -20px 24px -20px;
+  padding: var(--spacing-md);
+  background: var(--va-hero-bg);
+  border-radius: var(--radius-md);
+  color: var(--color-text-primary);
+  border: 1px solid var(--card-border);
+}
+
+.va-section-card {
+  background: #ffffff;
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--card-shadow);
 }

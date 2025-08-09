@@ -83,23 +83,37 @@ class SecuritySanitizationService {
     } = options;
 
     try {
-      // Configure DOMPurify
-      const config = {
-        ALLOWED_TAGS: allowedTags,
-        ALLOWED_ATTR: allowedAttributes,
-        ALLOW_DATA_ATTR: false,
-        ALLOW_UNKNOWN_PROTOCOLS: false,
-        FORBID_TAGS: stripScripts ? ['script', 'style', 'iframe', 'object', 'embed'] : [],
-        FORBID_ATTR: ['onload', 'onclick', 'onmouseover', 'onfocus', 'onblur', 'href', 'src'],
-        REMOVE_TAGS: stripComments ? ['comment'] : [],
-        USE_PROFILES: { html: true }
-      };
-
-      return DOMPurify.sanitize(content, config);
+      // If DOMPurify is available and has sanitize, use it
+      const anyDom = DOMPurify as any;
+      if (anyDom && typeof anyDom.sanitize === 'function') {
+        const config = {
+          ALLOWED_TAGS: allowedTags,
+          ALLOWED_ATTR: allowedAttributes,
+          ALLOW_DATA_ATTR: false,
+          ALLOW_UNKNOWN_PROTOCOLS: false,
+          FORBID_TAGS: stripScripts ? ['script', 'style', 'iframe', 'object', 'embed'] : [],
+          FORBID_ATTR: ['onload', 'onclick', 'onmouseover', 'onfocus', 'onblur', 'href', 'src'],
+          REMOVE_TAGS: stripComments ? ['comment'] : [],
+          USE_PROFILES: { html: true }
+        };
+        return anyDom.sanitize(content, config);
+      }
     } catch (error) {
       console.error('HTML sanitization failed:', error);
-      // Return empty string on sanitization failure
-      return '';
+    }
+
+    // Fallback: naive sanitization (server-safe)
+    try {
+      let stripped = String(content);
+      // Remove script/style/iframe blocks
+      stripped = stripped.replace(/<\s*(script|style|iframe)[^>]*>[\s\S]*?<\s*\/\1\s*>/gi, '');
+      // Remove all remaining tags
+      stripped = stripped.replace(/<[^>]+>/g, '');
+      // Remove dangerous protocols
+      stripped = stripped.replace(/javascript\s*:/gi, '').replace(/vbscript\s*:/gi, '').replace(/data\s*:/gi, '');
+      return stripped;
+    } catch {
+      return String(content);
     }
   }
 
@@ -262,7 +276,12 @@ class SecuritySanitizationService {
         contact: z.string().optional()
       }).optional(),
       recentTranscriptions: z.array(z.any()).optional(),
-      activeActions: z.array(z.any()).optional()
+      activeActions: z.array(z.any()).optional(),
+      onboardingSpec: z.object({
+        enabled: z.boolean(),
+        targetFields: z.array(z.string()),
+        current: z.record(z.string()).optional()
+      }).optional()
     }).optional()
   });
 

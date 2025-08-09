@@ -16,16 +16,20 @@ export default function BottomNavigation() {
   const pathname = usePathname();
   const router = useRouter();
 
+  const isItemActive = (currentPath: string, href: string) => {
+    if (currentPath === href) return true;
+    // Treat nested routes as active (e.g., /mobile-v3/voicemails/[id])
+    if (href !== '/mobile-v3' && currentPath.startsWith(href)) return true;
+    return false;
+  };
+
   return (
     <div className="fixed bottom-0 left-0 right-0 z-50 mobile-bottom-nav">
-      {/* Home indicator - Glassmorphism */}
+      {/* Home indicator - subtle flat */}
       <div className="flex justify-center pb-2">
         <div 
-          className="w-32 h-1 rounded-full"
-          style={{
-            background: 'rgba(255, 255, 255, 0.3)',
-            backdropFilter: 'var(--glass-backdrop-blur-light)'
-          }}
+          className="w-16 h-1 rounded-full"
+          style={{ background: 'rgba(0,0,0,0.08)' }}
         ></div>
       </div>
       
@@ -44,7 +48,7 @@ export default function BottomNavigation() {
         <div className="flex justify-around items-center w-full">
           {navigationItems.map((item) => {
             const Icon = item.icon;
-            const isActive = pathname === item.href;
+            const isActive = isItemActive(pathname || '', item.href);
             
             return (
               <motion.button
@@ -56,8 +60,8 @@ export default function BottomNavigation() {
                 style={{ 
                   WebkitTapHighlightColor: 'transparent',
                   touchAction: 'manipulation',
-                  background: isActive ? 'rgba(22, 138, 173, 0.1)' : 'transparent',
-                  borderRadius: 'var(--radius-sm)',
+                  background: isActive ? 'rgba(37, 99, 232, 0.10)' : 'transparent',
+                  borderRadius: '12px',
                   transition: 'var(--transition-default)',
                   minWidth: '60px'
                 }}
@@ -84,8 +88,8 @@ export default function BottomNavigation() {
                 {isActive && (
                   <motion.div
                     layoutId="activeTab"
-                    className="absolute -top-1 left-1/2 transform -translate-x-1/2 w-1 h-1 rounded-full"
-                    style={{ background: 'var(--color-primary)' }}
+                    className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 h-0.5 rounded-full"
+                    style={{ background: 'var(--color-primary)', width: '24px' }}
                     initial={false}
                     transition={{ type: "spring", stiffness: 500, damping: 30 }}
                   />

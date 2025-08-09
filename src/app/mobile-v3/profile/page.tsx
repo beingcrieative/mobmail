@@ -2,7 +2,7 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { motion } from 'framer-motion';
-import { User, Phone, Mail, Calendar, Bell, Shield, LogOut, Edit, ChevronRight, Settings, X } from 'lucide-react';
+import { User, Phone, Mail, Calendar, Bell, Shield, LogOut, Edit, ChevronRight, Settings, X, MessageSquare } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Header from '@/components/mobile-v3/Header';
 import BottomNavigation from '@/components/mobile-v3/BottomNavigation';
@@ -199,6 +199,15 @@ function ProfilePageContent() {
       label: 'Setup Wizard', 
       sublabel: 'Configureer je voicemail instellingen stap voor stap',
       action: launchWizard
+    },
+    {
+      icon: MessageSquare,
+      label: 'Onboarding met AI-assistent',
+      sublabel: 'Laat de agent je door de setup vragen leiden',
+      action: async () => {
+        // Start direct de agent met onboarding modus; API call doet de pagina zelf
+        router.push('/mobile-v3/agent?source=onboarding');
+      }
     },
     { 
       icon: Bell, 

@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 
 interface HeaderProps {
   title: string;
+  subtitle?: string;
   showBack?: boolean;
   showSettings?: boolean;
   showNotifications?: boolean;
@@ -15,6 +16,7 @@ interface HeaderProps {
 
 export default function Header({ 
   title, 
+  subtitle,
   showBack = false, 
   showSettings = false, 
   showNotifications = false,
@@ -40,16 +42,7 @@ export default function Header({
   };
 
   return (
-    <div 
-      style={{
-        background: 'linear-gradient(135deg, rgba(22, 138, 173, 0.05) 0%, rgba(26, 117, 159, 0.08) 100%)',
-        padding: 'var(--spacing-md)',
-        height: '80px',
-        display: 'flex',
-        alignItems: 'center',
-        borderBottom: '1px solid rgba(22, 138, 173, 0.1)'
-      }}
-    >
+    <div className="va-header" style={{ padding: 'var(--spacing-md)', minHeight: '64px', display: 'flex', alignItems: 'center' }}>
       <div className="flex items-center justify-between w-full">
         {/* Left side */}
         <div className="flex items-center">
@@ -60,31 +53,28 @@ export default function Header({
               onClick={handleBack}
               className="mr-3"
               style={{
-                padding: 'var(--spacing-sm)',
-                borderRadius: 'var(--radius-sm)',
-                background: 'rgba(22, 138, 173, 0.1)',
+                padding: '8px',
+                borderRadius: '12px',
+                background: 'transparent',
                 backdropFilter: 'blur(8px)',
-                border: '1px solid rgba(22, 138, 173, 0.2)',
+                border: '1px solid rgba(0,0,0,0.08)',
                 transition: 'var(--transition-default)'
               }}
             >
               <ArrowLeft 
                 size={20} 
-                style={{ color: 'var(--va-bondi-blue)' }} 
+                style={{ color: 'var(--color-primary)' }} 
               />
             </motion.button>
           )}
-          
-          <h1 
-            style={{
-              fontSize: 'var(--font-size-h2)',
-              fontWeight: 'var(--font-weight-bold)',
-              color: 'var(--color-text-primary)',
-              fontFamily: 'var(--font-family-primary)'
-            }}
-          >
-            {title}
-          </h1>
+          <div className="flex flex-col">
+            <h1 className="va-header-title">
+              {title}
+            </h1>
+            {subtitle && (
+              <p className="va-header-subtitle">{subtitle}</p>
+            )}
+          </div>
         </div>
 
         {/* Right side */}
@@ -96,17 +86,17 @@ export default function Header({
               onClick={handleNotifications}
               className="relative"
               style={{
-                padding: 'var(--spacing-sm)',
-                borderRadius: 'var(--radius-sm)',
-                background: 'rgba(22, 138, 173, 0.1)',
+                padding: '8px',
+                borderRadius: '12px',
+                background: 'transparent',
                 backdropFilter: 'blur(8px)',
-                border: '1px solid rgba(22, 138, 173, 0.2)',
+                border: '1px solid rgba(0,0,0,0.08)',
                 transition: 'var(--transition-default)'
               }}
             >
               <Bell 
                 size={20} 
-                style={{ color: 'var(--va-bondi-blue)' }} 
+                style={{ color: 'var(--color-primary)' }} 
               />
               <div 
                 className="absolute -top-1 -right-1 w-3 h-3 rounded-full border-2"
@@ -117,24 +107,24 @@ export default function Header({
               ></div>
             </motion.button>
           )}
-          
+
           {showSettings && (
             <motion.button
               whileTap={{ scale: 0.98 }}
               whileHover={{ scale: 1.02, y: -1 }}
               onClick={() => router.push('/mobile-v3/settings')}
               style={{
-                padding: 'var(--spacing-sm)',
-                borderRadius: 'var(--radius-sm)',
-                background: 'rgba(22, 138, 173, 0.1)',
+                padding: '8px',
+                borderRadius: '12px',
+                background: 'transparent',
                 backdropFilter: 'blur(8px)',
-                border: '1px solid rgba(22, 138, 173, 0.2)',
+                border: '1px solid rgba(0,0,0,0.08)',
                 transition: 'var(--transition-default)'
               }}
             >
               <Settings 
                 size={20} 
-                style={{ color: 'var(--va-bondi-blue)' }} 
+                style={{ color: 'var(--color-primary)' }} 
               />
             </motion.button>
           )}
