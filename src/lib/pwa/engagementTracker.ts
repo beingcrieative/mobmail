@@ -45,7 +45,7 @@ class EngagementTracker {
     };
 
     this.thresholds = {
-      minTimeSpent: 30 * 1000, // 30 seconden voor Chrome Android
+      minTimeSpent: 10 * 1000, // 10 seconden (verlaagd van 30)
       minInteractions: 1, // Minimaal 1 click/tap
       maxInactivityGap: 5 * 60 * 1000 // 5 minuten max inactiviteit
     };
@@ -220,8 +220,8 @@ class EngagementTracker {
     const timeRequirementMet = this.metrics.totalTimeSpent >= this.thresholds.minTimeSpent;
     const interactionRequirementMet = this.metrics.interactionCount >= this.thresholds.minInteractions;
     
-    // Additional quality checks
-    const hasRealEngagement = this.metrics.hasScrolled || this.metrics.interactionCount >= 3;
+    // Additional quality checks (more lenient)
+    const hasRealEngagement = this.metrics.hasScrolled || this.metrics.interactionCount >= 2;
     const notTooMuchInactivity = (Date.now() - this.lastActivityTime) < this.thresholds.maxInactivityGap;
     
     const wasEligible = this.metrics.isEligible;

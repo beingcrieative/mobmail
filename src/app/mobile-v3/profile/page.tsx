@@ -2,11 +2,13 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { motion } from 'framer-motion';
-import { User, Phone, Mail, Calendar, Bell, Shield, LogOut, Edit, ChevronRight, Settings, X, MessageSquare } from 'lucide-react';
+import { User, Phone, Mail, Calendar, Bell, Shield, LogOut, Edit, ChevronRight, Settings, X, MessageSquare, Download } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Header from '@/components/mobile-v3/Header';
 import BottomNavigation from '@/components/mobile-v3/BottomNavigation';
 import MobileSettingsWizard from '@/components/mobile-v3/settings/MobileSettingsWizard';
+import { InstallPrompt } from '@/components/mobile/InstallPrompt';
+import { useInstallPrompt } from '@/lib/hooks/useInstallPrompt';
 
 interface UserProfile {
   name: string;
@@ -25,9 +27,17 @@ function ProfilePageContent() {
   const [loading, setLoading] = useState(true);
   const [showWizard, setShowWizard] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showInstallPrompt, setShowInstallPrompt] = useState(false);
   const [userId, setUserId] = useState<string>('');
   const router = useRouter();
   const searchParams = useSearchParams();
+  
+  // PWA install functionality
+  const { 
+    isAppMode, 
+    shouldShowInstallButton, 
+    showInstallPrompt: triggerInstallPrompt 
+  } = useInstallPrompt();
 
   // Edit form state
   const [editForm, setEditForm] = useState({
@@ -193,6 +203,15 @@ function ProfilePageContent() {
     });
   };
 
+  const handleInstallApp = async () => {
+    if (isAppMode) {
+      alert('De app is al geïnstalleerd!');
+      return;
+    }
+    
+    setShowInstallPrompt(true);
+  };
+
   const settingsItems = [
     { 
       icon: Settings, 
@@ -209,6 +228,13 @@ function ProfilePageContent() {
         router.push('/mobile-v3/agent?source=onboarding');
       }
     },
+    // Only show install option if not already in app mode
+    ...(isAppMode ? [] : [{
+      icon: Download,
+      label: 'App installeren',
+      sublabel: isAppMode ? 'App is al geïnstalleerd' : 'Installeer VoicemailAI als native app op je telefoon',
+      action: handleInstallApp
+    }]),
     { 
       icon: Bell, 
       label: 'Meldingen', 
@@ -426,6 +452,22 @@ function ProfilePageContent() {
           userEmail={profile?.email || ''}
           onComplete={handleWizardComplete}
           onClose={handleWizardClose}
+        />
+      )}
+
+      {/* Install Prompt */}
+      {showInstallPrompt && (
+        <InstallPrompt
+          variant="modal"
+          showMetrics={false}
+          autoShow={true}
+          onInstallAttempt={(success) => {
+            setShowInstallPrompt(false);
+            if (success) {
+              console.log('App installed successfully');
+            }
+          }}
+          onDismiss={() => setShowInstallPrompt(false)}
         />
       )}
 

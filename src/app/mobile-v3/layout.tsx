@@ -115,19 +115,33 @@ export default function MobileLayout({ children }: MobileLayoutProps) {
     
     const initializeEngagement = () => {
       try {
-        // Check for install eligibility after some engagement
+        // Check for install eligibility after some engagement (reduced timing)
         setTimeout(() => {
           const isEligible = engagementTracker.isEligibleForInstallPrompt();
           setIsEligibleForInstall(isEligible);
+          
+          console.log('🔍 Install eligibility check:', {
+            eligible: isEligible,
+            summary: engagementTracker.getSummary()
+          });
           
           if (isEligible) {
             const summary = engagementTracker.getSummary();
             setEngagementSummary(summary);
             
-            // Show install prompt after engagement threshold
-            setTimeout(() => setShowInstallPrompt(true), 2000);
+            // Show install prompt after engagement threshold (faster)
+            setTimeout(() => setShowInstallPrompt(true), 1000);
           }
-        }, 5000);
+        }, 2000);
+
+        // Also listen for engagement changes
+        engagementTracker.on('became-eligible', (metrics) => {
+          console.log('🎉 User became eligible for install!', metrics);
+          setIsEligibleForInstall(true);
+          setEngagementSummary(engagementTracker.getSummary());
+          setTimeout(() => setShowInstallPrompt(true), 1000);
+        });
+        
       } catch (error) {
         console.error('Engagement tracking failed:', error);
       }
