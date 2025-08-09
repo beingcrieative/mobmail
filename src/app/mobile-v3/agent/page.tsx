@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
 import { 
   Mic, 
@@ -15,9 +15,14 @@ import {
   MessageSquare,
   Power,
   Send,
-  Loader2
+  Loader2,
+  Users,
+  TrendingUp,
+  Zap,
+  ChevronRight
 } from 'lucide-react';
 import Header from '@/components/mobile-v3/Header';
+import { useSearchParams } from 'next/navigation';
 import BottomNavigation from '@/components/mobile-v3/BottomNavigation';
 
 interface AssistantAction {
@@ -48,18 +53,36 @@ export default function AgentAssistantPage() {
   const [textInput, setTextInput] = useState('');
   const [loading, setLoading] = useState(true);
   const [sendingMessage, setSendingMessage] = useState(false);
+  const [selectedAction, setSelectedAction] = useState<AssistantAction | null>(null);
+  const [activeTab, setActiveTab] = useState<'overview' | 'chat' | 'actions'>('overview');
+  const searchParams = useSearchParams();
+  const isOnboarding = searchParams?.get('source') === 'onboarding';
+  const onboardingTargetFields = ['name','mobileNumber','companyName','companyEmail','companyOpeningHours','companyInfo','information','calUsername','calApiKey','calEventTypeId'];
+  const [onboardingProgress, setOnboardingProgress] = useState<{collected: number; missing: number; missingKeys: string[]}>({ collected: 0, missing: onboardingTargetFields.length, missingKeys: onboardingTargetFields });
+  const [onboardingSaved, setOnboardingSaved] = useState(false);
 
   useEffect(() => {
     fetchAgentData();
-  }, []);
+    if (isOnboarding) {
+      setActiveTab('chat');
+      // Toon direct een onboarding-intro bericht voor duidelijke affordance
+      setChatMessages([
+        {
+          id: 'intro',
+          type: 'agent',
+          message: 'Ik help je snel door de setup. We verzamelen alleen het nodige. Mag ik beginnen met je naam en mobiele nummer?',
+          timestamp: Date.now()
+        }
+      ]);
+      setTimeout(() => handleSendMessage('Start onboarding.'), 300);
+    }
+  }, [isOnboarding]);
 
   const fetchAgentData = async () => {
     try {
       setLoading(true);
-      // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 1000));
       
-      // Mock data voor development
       setActions([
         {
           id: '1',
@@ -69,7 +92,7 @@ export default function AgentAssistantPage() {
           customerName: 'Jan Bakker',
           customerPhone: '+31 6 12345678',
           priority: 'high',
-          createdAt: Date.now() - 300000, // 5 min ago
+          createdAt: Date.now() - 300000,
           status: 'pending',
           context: 'Gesprek over e-commerce oplossing voor lokale bakkerij'
         },
@@ -80,7 +103,7 @@ export default function AgentAssistantPage() {
           description: 'Klant vroeg om voorbeelden van eerder werk',
           customerName: 'Sarah de Vries',
           priority: 'medium',
-          createdAt: Date.now() - 900000, // 15 min ago
+          createdAt: Date.now() - 900000,
           status: 'pending',
           context: 'Interesse in branding en logo design'
         },
@@ -91,20 +114,23 @@ export default function AgentAssistantPage() {
           description: 'Concept offerte voor 6 maanden SEO begeleiding',
           customerName: 'Tom Williams',
           priority: 'medium',
-          createdAt: Date.now() - 1800000, // 30 min ago
+          createdAt: Date.now() - 1800000,
           status: 'pending',
           context: 'Restaurant wil beter vindbaar worden online'
         }
       ]);
 
+      // Alleen standaard welkomstbericht als we NIET in onboarding zijn
+      if (!isOnboarding) {
       setChatMessages([
         {
           id: '1',
           type: 'agent',
-          message: 'Hoi! Ik ben je AI business assistant. Ik heb 3 nieuwe acties voor je gegenereerd op basis van recente gesprekken. Je kunt me nieuwe instructies geven, vragen stellen over je business, of me vragen om acties uit te voeren. Hoe kan ik je helpen?',
+          message: 'Hoi! Ik ben je AI business assistant. Ik heb 3 nieuwe acties voor je gegenereerd op basis van recente gesprekken. Stel me vragen over klanten of afspraken, of laat me acties uitvoeren. Waarmee kan ik helpen?',
           timestamp: Date.now() - 600000
         }
       ]);
+      }
 
     } catch (error) {
       console.error('Error fetching agent data:', error);
@@ -120,103 +146,144 @@ export default function AgentAssistantPage() {
         : action
     ));
     
-    // Haptic feedback simulation
-    if (navigator.vibrate) {
-      navigator.vibrate(50);
-    }
+    if (navigator.vibrate) navigator.vibrate(50);
   };
 
   const handleVoiceStart = () => {
     setIsRecording(true);
-    // In real app: start voice recording
   };
 
   const handleVoiceStop = () => {
     setIsRecording(false);
-    // In real app: stop recording and process speech-to-text
-    // For demo, simulate voice input with realistic commands
     const voiceCommands = [
-      "Bel Jan Bakker terug voor de webshop details",
-      "Stuur portfolio naar Sarah de Vries", 
-      "Maak een offerte voor Tom Williams voor SEO",
-      "Plan een afspraak met de nieuwe klant volgende week",
-      "Stuur een reminder voor de deadline van project X"
+      'Bel Jan Bakker terug voor de webshop details',
+      'Stuur portfolio naar Sarah de Vries',
+      'Maak een offerte voor Tom Williams voor SEO',
+      'Plan een afspraak met de nieuwe klant volgende week',
+      'Stuur een reminder voor de deadline van project X'
     ];
-    
     const randomCommand = voiceCommands[Math.floor(Math.random() * voiceCommands.length)];
-    
-    setTimeout(() => {
-      handleSendMessage(randomCommand);
-    }, 500);
+    setTimeout(() => handleSendMessage(randomCommand), 500);
   };
 
   const handleSendMessage = async (message: string) => {
     if (!message.trim()) return;
-    
     setSendingMessage(true);
-    
-    // Add user message
+
     const userMessage: ChatMessage = {
       id: Date.now().toString(),
       type: 'user',
       message,
       timestamp: Date.now()
     };
-    
+
     setChatMessages(prev => [...prev, userMessage]);
     setTextInput('');
+    // Auto-scroll to bottom after sending
+    setTimeout(() => {
+      const el = document.getElementById('chat-scroll-container');
+      if (el) el.scrollTop = el.scrollHeight;
+    }, 50);
     
     try {
-      // Get business context
       const businessContext = {
         business: {
-          name: "Mijn ZZP Bedrijf",
-          services: ["Webdevelopment", "Consultancy", "Design"],
-          pricing: {
-            "webdevelopment": 75,
-            "consultancy": 85,
-            "design": 65
-          },
-          availability: "Ma-Vr 9:00-17:00",
-          contact: "info@mijnbedrijf.nl"
+          name: 'Mijn ZZP Bedrijf',
+          services: ['Webdevelopment', 'Consultancy', 'Design'],
+          pricing: { webdevelopment: 75, consultancy: 85, design: 65 },
+          availability: 'Ma-Vr 9:00-17:00',
+          contact: 'info@mijnbedrijf.nl'
         },
-        recentTranscriptions: actions.slice(0, 3).map(action => ({
-          customerName: action.customerName,
-          transcriptSummary: action.description
+        recentTranscriptions: actions.slice(0, 3).map(a => ({
+          customerName: a.customerName,
+          transcriptSummary: a.description
         })),
         activeActions: actions.filter(a => a.status === 'pending')
       };
 
-      // Call AI agent
       const response = await fetch('/api/agent/chat', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           message,
           sessionId: 'session-' + Date.now(),
-          context: businessContext
+          context: {
+            ...businessContext,
+            // Houd onboarding-spec actief voor elke beurt tijdens onboarding
+            onboardingSpec: isOnboarding ? {
+              enabled: true,
+              targetFields: onboardingTargetFields,
+              current: {}
+            } : undefined,
+            history: [...chatMessages.slice(-20)].map(m => ({ role: m.type === 'user' ? 'user' : 'agent', message: m.message }))
+          }
         })
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to get agent response');
-      }
+      if (!response.ok) throw new Error('Failed to get agent response');
 
       const aiResponse = await response.json();
-      
-      // Add agent response
+
       const agentMessage: ChatMessage = {
         id: (Date.now() + 1).toString(),
         type: 'agent',
         message: aiResponse.message,
         timestamp: Date.now()
       };
-      
       setChatMessages(prev => [...prev, agentMessage]);
-      
-      // Add any new actions generated by the agent
+      setTimeout(() => {
+        const el = document.getElementById('chat-scroll-container');
+        if (el) el.scrollTop = el.scrollHeight;
+      }, 50);
+
+      // Update onboarding progress if present
+      if (aiResponse.onboarding) {
+        const fields = aiResponse.onboarding.fields || {};
+        const missing = aiResponse.onboarding.missing || [];
+        setOnboardingProgress({ collected: Object.keys(fields).length, missing: missing.length, missingKeys: missing });
+      }
+
+      // Persist at the end only (when no fields missing and not saved yet)
+      if (
+        aiResponse.onboarding &&
+        Array.isArray(aiResponse.onboarding.missing) &&
+        aiResponse.onboarding.missing.length === 0 &&
+        aiResponse.onboarding.fields &&
+        !onboardingSaved
+      ) {
+        try {
+          await fetch('/api/user/profile', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(aiResponse.onboarding.fields)
+          });
+          const savedMsg: ChatMessage = {
+            id: (Date.now() + 2).toString(),
+            type: 'agent',
+            message: '✅ Alle gegevens compleet. Ik heb je profiel opgeslagen.',
+            timestamp: Date.now()
+          };
+          setChatMessages(prev => [...prev, savedMsg]);
+          setOnboardingSaved(true);
+          setTimeout(() => {
+            const el = document.getElementById('chat-scroll-container');
+            if (el) el.scrollTop = el.scrollHeight;
+          }, 50);
+        } catch (e) {
+          const failMsg: ChatMessage = {
+            id: (Date.now() + 2).toString(),
+            type: 'agent',
+            message: '⚠️ Opslaan is niet gelukt. Probeer het zo nog eens of gebruik de Setup Wizard.',
+            timestamp: Date.now()
+          };
+          setChatMessages(prev => [...prev, failMsg]);
+          setTimeout(() => {
+            const el = document.getElementById('chat-scroll-container');
+            if (el) el.scrollTop = el.scrollHeight;
+          }, 50);
+        }
+      }
+
       if (aiResponse.actions && aiResponse.actions.length > 0) {
         const newActions = aiResponse.actions.map((action: any) => ({
           id: Date.now().toString() + Math.random(),
@@ -229,39 +296,36 @@ export default function AgentAssistantPage() {
           status: 'pending',
           context: action.content || action.suggestedTiming
         }));
-        
         setActions(prev => [...newActions, ...prev]);
-        
-        // Haptic feedback for new actions
-        if (navigator.vibrate) {
-          navigator.vibrate([100, 50, 100]);
-        }
-        
-        // Add a system message about new actions
+        if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
         const systemMessage: ChatMessage = {
           id: (Date.now() + 2).toString(),
           type: 'agent',
           message: `✅ Ik heb ${newActions.length} nieuwe actie${newActions.length > 1 ? 's' : ''} toegevoegd aan je lijst.`,
           timestamp: Date.now() + 100
         };
-        
         setTimeout(() => {
           setChatMessages(prev => [...prev, systemMessage]);
+          setTimeout(() => {
+            const el = document.getElementById('chat-scroll-container');
+            if (el) el.scrollTop = el.scrollHeight;
+          }, 50);
         }, 1000);
       }
-      
+
     } catch (error) {
       console.error('Error sending message to agent:', error);
-      
-      // Fallback response
       const errorMessage: ChatMessage = {
         id: (Date.now() + 1).toString(),
         type: 'agent',
         message: 'Sorry, ik kan je bericht momenteel niet verwerken. Probeer het over een moment opnieuw.',
         timestamp: Date.now()
       };
-      
       setChatMessages(prev => [...prev, errorMessage]);
+      setTimeout(() => {
+        const el = document.getElementById('chat-scroll-container');
+        if (el) el.scrollTop = el.scrollHeight;
+      }, 50);
     } finally {
       setSendingMessage(false);
     }
@@ -280,9 +344,9 @@ export default function AgentAssistantPage() {
 
   const getPriorityColor = (priority: AssistantAction['priority']) => {
     switch (priority) {
-      case 'high': return 'border-l-red-400 bg-red-50';
-      case 'medium': return 'border-l-yellow-400 bg-yellow-50';
-      case 'low': return 'border-l-blue-400 bg-blue-50';
+      case 'high': return 'var(--color-error)';
+      case 'medium': return 'var(--color-warning)';
+      case 'low': return 'var(--color-primary)';
     }
   };
 
@@ -290,14 +354,27 @@ export default function AgentAssistantPage() {
     const diff = Date.now() - timestamp;
     const minutes = Math.floor(diff / 60000);
     const hours = Math.floor(minutes / 60);
-    
     if (hours > 0) return `${hours}u geleden`;
     return `${minutes}m geleden`;
   };
 
+  const metrics = (() => {
+    const pending = actions.filter(a => a.status === 'pending').length;
+    const highPriority = actions.filter(a => a.priority === 'high' && a.status === 'pending').length;
+    const completed = actions.filter(a => a.status === 'completed').length;
+    return { pending, highPriority, completed };
+  })();
+
+  const quickSuggestions = [
+    'Overzicht van open acties',
+    'Volgende afspraak plannen',
+    'Laatste klantgesprekken samenvatten',
+    'Maak follow-up email concept',
+  ];
+
   if (loading) {
     return (
-      <div className="min-h-screen clean-background flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--va-bg-home)' }}>
         <div className="text-center">
           <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4" style={{ color: 'var(--color-primary)' }} />
           <p style={{ color: 'var(--color-text-secondary)' }}>Assistant laden...</p>
@@ -307,225 +384,352 @@ export default function AgentAssistantPage() {
   }
 
   return (
-    <div className="min-h-screen pb-20" style={{ background: 'var(--va-bg-assistant)' }}>
-      <Header title="ZZP Business Assistant" showBack />
+    <div className="min-h-screen" style={{ background: 'var(--va-bg-home)', paddingBottom: isOnboarding ? 0 : '5rem' }}>
+      <Header title={isOnboarding ? 'Onboarding Agent' : 'Business Assistant'} showBack subtitle={isOnboarding ? 'Ik begeleid je stap voor stap door de setup' : undefined} />
 
       <div className="px-4 py-4">
-        {/* AI Assistant Status - VoicemailAI Success Partner */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-6"
-        >
-          <div
-            className="p-4 rounded-xl"
-            style={{
-              background: '#ebf7e8',
-              border: '2px solid var(--va-light-green-2)'
-            }}
-          >
-            <div className="flex justify-between items-center">
-              <div>
-                <div
-                  className="font-bold"
-                  style={{ color: 'var(--va-indigo-dye)' }}
-                >
-                  🟢 AI Assistant Actief
-                </div>
-                <div
-                  className="text-sm"
-                  style={{ color: 'var(--va-lapis-lazuli)' }}
-                >
-                  Helpt je business groeien • 24/7 beschikbaar
-                </div>
-              </div>
-              <div
-                className="w-12 h-6 rounded-full relative"
-                style={{ background: 'var(--va-emerald)' }}
+        {/* Tab Navigation */}
+        <div className="flex mb-6 rounded-lg p-1" style={{ background: 'var(--background-subtle)', border: '1px solid var(--card-border)' }}>
+          {[
+            { id: 'overview', label: 'Overzicht', icon: TrendingUp },
+            { id: 'chat', label: 'Chat', icon: MessageSquare },
+            { id: 'actions', label: 'Acties', icon: Zap }
+          ].map((tab) => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
+            return (
+              <motion.button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as any)}
+                className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-md text-sm font-medium transition-all`}
+                style={{
+                  background: isActive ? 'var(--color-primary)' : 'transparent',
+                  color: isActive ? 'white' : 'var(--color-text-muted)'
+                }}
+                whileTap={{ scale: 0.95 }}
               >
-                <div className="w-5 h-5 bg-white rounded-full absolute right-0.5 top-0.5 shadow-sm"></div>
-              </div>
-            </div>
-          </div>
-        </motion.div>
+                <Icon size={16} />
+                {tab.label}
+              </motion.button>
+            );
+          })}
+        </div>
 
-        {/* Business Insights - VoicemailAI Intelligence */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.05 }}
-          className="mb-6"
-        >
-          <div
-            className="p-3 rounded-xl"
-            style={{
-              background: '#dcf1eb',
-              border: '2px solid var(--va-verdigris)'
-            }}
+        {/* Overview Tab (verbergen in onboarding) */}
+        {activeTab === 'overview' && !isOnboarding && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="space-y-4"
           >
-            <div
-              className="font-bold mb-2 text-sm"
-              style={{ color: 'var(--va-indigo-dye)' }}
-            >
-              💡 Business Inzichten
-            </div>
-            <div
-              className="text-sm"
-              style={{ color: 'var(--va-lapis-lazuli)' }}
-            >
-              "Je hebt vandaag {actions.length} warme leads binnen. Plan follow-ups voor optimale conversie!"
-            </div>
-          </div>
-        </motion.div>
-
-        {/* Action Cards */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="mb-6"
-        >
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Acties van Assistant</h3>
-          <div className="space-y-3">
-            <AnimatePresence>
-              {actions.filter(action => action.status === 'pending').map((action) => (
-                <ActionCard
-                  key={action.id}
-                  action={action}
-                  onSwipe={handleActionSwipe}
-                  formatTimeAgo={formatTimeAgo}
-                  getActionIcon={getActionIcon}
-                  getPriorityColor={getPriorityColor}
-                />
-              ))}
-            </AnimatePresence>
-            
-            {actions.filter(action => action.status === 'pending').length === 0 && (
-              <div className="text-center py-8">
-                <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-2" />
-                <p className="text-gray-600">Alle acties afgehandeld!</p>
-              </div>
-            )}
-          </div>
-        </motion.div>
-
-        {/* VoicemailAI Chat Interface */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="mb-6"
-        >
-          <div
-            className="font-bold mb-3"
-            style={{ color: 'var(--va-indigo-dye)' }}
-          >
-            💬 Chat met je Business AI
-          </div>
-          
-          {/* Chat Messages Container */}
-          <div
-            className="p-4 rounded-xl flex-1"
-            style={{
-              background: 'white',
-              border: '2px solid var(--va-keppel)'
-            }}
-          >
-            <div
-              className="h-32 overflow-y-auto p-3 mb-3 space-y-3 rounded-lg"
-              style={{
-                border: '2px solid var(--va-light-green-2)',
-                background: '#f7fbe9'
-              }}
-            >
-              {chatMessages.map((message) => (
-                <div
-                  key={message.id}
-                  className={`mb-3 flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
+            {/* Assistant Status */}
+            <div className="va-section-card p-4">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full" style={{ background: assistantActive ? 'var(--color-success)' : '#CBD5E1' }} />
+                  <span className="font-medium" style={{ color: 'var(--color-text-primary)' }}>
+                    {assistantActive ? 'AI Assistant Actief' : 'AI Assistant Uitgeschakeld'}
+                  </span>
+                </div>
+                <motion.button
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => setAgentActive(v => !v)}
+                  className="px-3 py-1 rounded-full text-sm font-medium"
+                  style={{
+                    background: assistantActive ? 'rgba(37,99,232,0.10)' : 'transparent',
+                    border: '1px solid var(--card-border)',
+                    color: 'var(--color-text-primary)'
+                  }}
                 >
-                  <div 
-                    className="p-3 rounded-lg text-sm"
-                    style={{
-                      background: message.type === 'user' ? 'var(--va-bondi-blue)' : 'var(--va-emerald)',
-                      color: 'white'
-                    }}
-                  >
-                    <strong>{message.type === 'user' ? 'Jij:' : 'Business AI:'}</strong> {message.message}
+                  {assistantActive ? 'Aan' : 'Uit'}
+                </motion.button>
+              </div>
+              <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
+                Je AI assistant helpt je met klantvragen, afspraken en business management
+              </p>
+            </div>
+
+            {/* Metrics Grid */}
+            <div className="grid grid-cols-3 gap-3">
+              {[
+                { label: 'Open Acties', value: metrics.pending, color: 'var(--color-primary)' },
+                { label: 'Hoog Prioriteit', value: metrics.highPriority, color: 'var(--color-error)' },
+                { label: 'Afgerond', value: metrics.completed, color: 'var(--color-success)' },
+              ].map((metric, index) => (
+                <div key={index} className="va-section-card p-3 text-center">
+                  <div className="text-2xl font-bold mb-1" style={{ color: metric.color }}>
+                    {metric.value}
+                  </div>
+                  <div className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
+                    {metric.label}
                   </div>
                 </div>
               ))}
-              {sendingMessage && (
-                <div className="flex justify-start mb-3">
-                  <div 
-                    className="px-3 py-2 rounded-lg"
-                    style={{ background: 'var(--va-emerald)', color: 'white' }}
+            </div>
+
+            {/* Quick Actions */}
+            <div className="va-section-card p-4">
+              <h3 className="font-medium mb-3" style={{ color: 'var(--color-text-primary)' }}>
+                Snelle Acties
+              </h3>
+              <div className="grid grid-cols-2 gap-2">
+                {quickSuggestions.map((suggestion, index) => (
+                  <motion.button
+                    key={index}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => {
+                      setActiveTab('chat');
+                      setTimeout(() => handleSendMessage(suggestion), 100);
+                    }}
+                    className="p-3 text-left rounded-lg text-sm"
+                    style={{
+                      border: '1px solid var(--card-border)',
+                      background: 'var(--background-clean)',
+                      color: 'var(--color-text-primary)'
+                    }}
                   >
-                    <Loader2 className="w-4 h-4 animate-spin" />
+                    {suggestion}
+                  </motion.button>
+                ))}
+              </div>
+            </div>
+
+            {/* Recent Activity */}
+            <div className="va-section-card p-4">
+              <h3 className="font-medium mb-3" style={{ color: 'var(--color-text-primary)' }}>
+                Recente Activiteit
+              </h3>
+              <div className="space-y-2">
+                {actions.slice(0, 3).map((action) => (
+                  <div key={action.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50">
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'rgba(37,99,232,0.10)' }}>
+                      {React.createElement(getActionIcon(action.type), { size: 16, style: { color: 'var(--color-primary)' } })}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium truncate" style={{ color: 'var(--color-text-primary)' }}>
+                        {action.title}
+                      </div>
+                      <div className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
+                        {action.customerName} • {formatTimeAgo(action.createdAt)}
+                      </div>
+                    </div>
+                    <ChevronRight size={16} style={{ color: 'var(--color-text-muted)' }} />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {/* Chat Tab */}
+        {activeTab === 'chat' && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="space-y-4"
+          >
+            {/* Chat Messages */}
+            <div className="va-section-card p-4">
+              {/* Onboarding status chip */}
+              {isOnboarding && (
+                <div className="mb-3 flex items-center justify-between text-xs px-3 py-2 rounded-lg"
+                     style={{ background: 'var(--background-subtle)', border: '1px solid var(--card-border)', color: 'var(--color-text-primary)' }}>
+                  <span>Onboarding actief</span>
+                  <span>{onboardingProgress.collected}/{onboardingTargetFields.length} verzameld</span>
+                </div>
+              )}
+
+              <div
+                className="overflow-y-auto mb-4 space-y-3"
+                id="chat-scroll-container"
+                style={{ maxHeight: isOnboarding ? '65dvh' : '16rem' }}
+              >
+                {chatMessages.map((message) => (
+                  <div key={message.id} className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}>
+                    <div
+                      className="px-3 py-2 rounded-lg max-w-[80%] text-sm"
+                      style={{
+                        background: message.type === 'user' ? 'var(--color-primary)' : 'var(--background-subtle)',
+                        color: message.type === 'user' ? 'white' : 'var(--color-text-primary)'
+                      }}
+                    >
+                      {message.message}
+                    </div>
+                  </div>
+                ))}
+                {sendingMessage && (
+                  <div className="flex justify-start">
+                    <div className="px-3 py-2 rounded-lg" style={{ background: 'var(--background-subtle)' }}>
+                      <Loader2 className="w-4 h-4 animate-spin" style={{ color: 'var(--color-text-muted)' }} />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Input Area */}
+              <div className="flex items-center gap-2">
+                <motion.button
+                  whileTap={{ scale: 0.95 }}
+                  onClick={isRecording ? handleVoiceStop : handleVoiceStart}
+                  className="p-2 rounded-lg"
+                  style={{
+                    border: '1px solid var(--card-border)',
+                    background: isRecording ? 'rgba(239,68,68,0.1)' : 'transparent'
+                  }}
+                >
+                  {isRecording ? (
+                    <MicOff size={18} style={{ color: '#EF4444' }} />
+                  ) : (
+                    <Mic size={18} style={{ color: 'var(--color-primary)' }} />
+                  )}
+                </motion.button>
+
+                <input
+                  type="text"
+                  placeholder="Vraag je business AI om hulp..."
+                  value={textInput}
+                  onChange={(e) => setTextInput(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSendMessage(textInput)}
+                  className="flex-1 px-3 py-2 rounded-lg focus:outline-none"
+                  style={{
+                    border: '1px solid var(--card-border)',
+                    background: 'white',
+                    color: 'var(--color-text-primary)'
+                  }}
+                />
+
+                <motion.button
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => handleSendMessage(textInput)}
+                  disabled={!textInput.trim() || sendingMessage}
+                  className="p-2 rounded-lg disabled:opacity-50"
+                  style={{ background: 'var(--color-primary)', color: 'white' }}
+                >
+                  <Send size={18} />
+                </motion.button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {/* Actions Tab */}
+        {activeTab === 'actions' && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="space-y-3"
+          >
+            {actions.filter(a => a.status === 'pending').map((action) => (
+              <ActionCard
+                key={action.id}
+                action={action}
+                onSwipe={handleActionSwipe}
+                formatTimeAgo={formatTimeAgo}
+                getActionIcon={getActionIcon}
+                getPriorityColor={getPriorityColor}
+                onOpen={() => setSelectedAction(action)}
+              />
+            ))}
+            
+            {actions.filter(a => a.status === 'pending').length === 0 && (
+              <div className="text-center py-12">
+                <CheckCircle className="w-12 h-12 mx-auto mb-3" style={{ color: 'var(--color-success)' }} />
+                <p style={{ color: 'var(--color-text-secondary)' }}>Alle acties afgehandeld!</p>
+              </div>
+            )}
+          </motion.div>
+        )}
+      </div>
+
+      {/* Action Detail Bottom Sheet */}
+      <AnimatePresence>
+        {selectedAction && (
+          <motion.div
+            initial={{ y: '100%' }}
+            animate={{ y: 0 }}
+            exit={{ y: '100%' }}
+            transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+            className="fixed inset-x-0 bottom-0 z-50"
+          >
+            <div className="va-section-card p-4 rounded-t-2xl" style={{ borderTopLeftRadius: 16, borderTopRightRadius: 16 }}>
+              <div className="w-10 h-1 bg-gray-300 rounded-full mx-auto mb-4" />
+              
+              <div className="flex items-start justify-between mb-4">
+                <div>
+                  <div className="text-sm font-medium" style={{ color: 'var(--color-text-muted)' }}>
+                    {selectedAction.type.toUpperCase()}
+                  </div>
+                  <div className="text-lg font-semibold" style={{ color: 'var(--color-text-primary)' }}>
+                    {selectedAction.title}
+                  </div>
+                </div>
+                <motion.button
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => setSelectedAction(null)}
+                  className="p-2 rounded-lg"
+                  style={{ background: 'var(--background-subtle)' }}
+                >
+                  <X size={18} style={{ color: 'var(--color-text-muted)' }} />
+                </motion.button>
+              </div>
+
+              <p className="text-sm mb-4" style={{ color: 'var(--color-text-secondary)' }}>
+                {selectedAction.description}
+              </p>
+
+              <div className="flex items-center gap-2 mb-4">
+                <Users size={16} style={{ color: 'var(--color-text-muted)' }} />
+                <span className="text-sm font-medium" style={{ color: 'var(--color-text-primary)' }}>
+                  {selectedAction.customerName}
+                </span>
+                {selectedAction.customerPhone && (
+                  <span className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
+                    • {selectedAction.customerPhone}
+                  </span>
+                )}
+              </div>
+
+              {selectedAction.context && (
+                <div className="p-3 rounded-lg mb-4" style={{ background: 'var(--background-subtle)' }}>
+                  <div className="text-xs font-medium mb-1" style={{ color: 'var(--color-text-muted)' }}>
+                    Context
+                  </div>
+                  <div className="text-sm" style={{ color: 'var(--color-text-primary)' }}>
+                    {selectedAction.context}
                   </div>
                 </div>
               )}
+
+              <div className="grid grid-cols-2 gap-3">
+                <motion.button
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => {
+                    handleActionSwipe(selectedAction.id, 'approve');
+                    setSelectedAction(null);
+                  }}
+                  className="py-3 rounded-lg text-white font-medium"
+                  style={{ background: 'var(--color-success)' }}
+                >
+                  Voltooien
+                </motion.button>
+                <motion.button
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => {
+                    handleActionSwipe(selectedAction.id, 'reject');
+                    setSelectedAction(null);
+                  }}
+                  className="py-3 rounded-lg font-medium"
+                  style={{ background: 'var(--background-subtle)', color: 'var(--color-error)' }}
+                >
+                  Afwijzen
+                </motion.button>
+              </div>
             </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-            {/* VoicemailAI Input Interface */}
-            <div className="flex gap-3">
-              <input
-                type="text"
-                placeholder="Vraag je business AI om hulp..."
-                value={textInput}
-                onChange={(e) => setTextInput(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && handleSendMessage(textInput)}
-                className="flex-1 px-3 py-2 rounded-lg focus:outline-none"
-                style={{
-                  border: '2px solid var(--va-keppel)',
-                  color: 'var(--va-indigo-dye)',
-                  background: 'white'
-                }}
-              />
-              <motion.button
-                whileTap={{ scale: 0.95 }}
-                onClick={() => handleSendMessage(textInput)}
-                disabled={!textInput.trim() || sendingMessage}
-                className="px-4 py-2 rounded-lg text-white disabled:opacity-50"
-                style={{ background: 'var(--va-emerald)' }}
-              >
-                📤
-              </motion.button>
-            </div>
-          </div>
-          
-          <p className="text-xs text-gray-500 mt-2 text-center">
-            Houd microfoon ingedrukt om te spreken
-          </p>
-        </motion.div>
-
-        {/* Quick Commands */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-        >
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Snelle Commando's</h3>
-          <div className="grid grid-cols-2 gap-3">
-            {[
-              { label: 'Bel laatste klant', action: () => handleSendMessage('Bel de laatste klant terug die contact heeft gehad') },
-              { label: 'Stuur portfolio', action: () => handleSendMessage('Stuur mijn portfolio en voorbeelden naar de laatste geïnteresseerde klant') },
-              { label: 'Plan afspraak', action: () => handleSendMessage('Plan een kennismakingsafspraak met de laatste prospect') },
-              { label: 'Maak offerte', action: () => handleSendMessage('Maak een offerte op basis van het laatste gesprek') }
-            ].map((command, index) => (
-              <motion.button
-                key={index}
-                whileTap={{ scale: 0.95 }}
-                onClick={command.action}
-                className="p-3 bg-white rounded-xl shadow-sm border border-gray-100 text-sm font-medium text-gray-700 hover:bg-gray-50"
-              >
-                {command.label}
-              </motion.button>
-            ))}
-          </div>
-        </motion.div>
-      </div>
-
-      <BottomNavigation />
+      {!isOnboarding && <BottomNavigation />}
     </div>
   );
 }
@@ -536,73 +740,65 @@ interface ActionCardProps {
   formatTimeAgo: (timestamp: number) => string;
   getActionIcon: (type: AssistantAction['type']) => any;
   getPriorityColor: (priority: AssistantAction['priority']) => string;
+  onOpen: () => void;
 }
 
-function ActionCard({ action, onSwipe, formatTimeAgo, getActionIcon, getPriorityColor }: ActionCardProps) {
+function ActionCard({ action, onSwipe, formatTimeAgo, getActionIcon, getPriorityColor, onOpen }: ActionCardProps) {
   const x = useMotionValue(0);
-  const backgroundColor = useTransform(
-    x,
-    [-150, 0, 150],
-    ['#ef4444', '#ffffff', '#10b981']
-  );
-
+  const backgroundColor = useTransform(x, [-150, 0, 150], ['#fee2e2', '#ffffff', '#dcfce7']);
   const Icon = getActionIcon(action.type);
 
   return (
     <motion.div
       drag="x"
       dragConstraints={{ left: 0, right: 0 }}
-      style={{ x, backgroundColor }}
       onDragEnd={(_, info) => {
-        if (info.offset.x > 100) {
-          onSwipe(action.id, 'approve');
-        } else if (info.offset.x < -100) {
-          onSwipe(action.id, 'reject');
-        }
+        if (info.offset.x > 100) onSwipe(action.id, 'approve');
+        else if (info.offset.x < -100) onSwipe(action.id, 'reject');
       }}
-      whileDrag={{ scale: 1.05 }}
-      className={`blabla-card border-l-4 cursor-grab active:cursor-grabbing ${getPriorityColor(action.priority)}`}
+      whileDrag={{ scale: 1.02 }}
+      className="va-section-card p-4 cursor-grab active:cursor-grabbing"
+      style={{ x, backgroundColor, borderLeft: `4px solid ${getPriorityColor(action.priority)}` }}
+      onClick={onOpen}
     >
-      <div className="flex items-start space-x-3">
+      <div className="flex items-start gap-3">
         <div className="flex-shrink-0">
-          <div 
-            className="w-10 h-10 rounded-lg flex items-center justify-center"
-            style={{
-              backgroundColor: 'rgba(0, 188, 212, 0.1)',
-              color: 'var(--color-primary)'
-            }}
-          >
-            <Icon size={20} />
+          <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: 'rgba(37,99,232,0.10)' }}>
+            <Icon size={20} style={{ color: 'var(--color-primary)' }} />
           </div>
         </div>
         
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between mb-1">
-            <h4 className="font-medium text-gray-900 truncate">{action.title}</h4>
-            <span className="text-xs text-gray-500 ml-2">{formatTimeAgo(action.createdAt)}</span>
+            <h4 className="font-medium truncate" style={{ color: 'var(--color-text-primary)' }}>
+              {action.title}
+            </h4>
+            <span className="text-xs ml-2" style={{ color: 'var(--color-text-muted)' }}>
+              {formatTimeAgo(action.createdAt)}
+            </span>
           </div>
           
-          <p className="text-sm text-gray-600 mb-1">{action.description}</p>
+          <p className="text-sm mb-2" style={{ color: 'var(--color-text-secondary)' }}>
+            {action.description}
+          </p>
           
-          <div className="flex items-center space-x-2">
-            <span className="text-sm font-medium text-gray-900">{action.customerName}</span>
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium" style={{ color: 'var(--color-text-primary)' }}>
+              {action.customerName}
+            </span>
             {action.customerPhone && (
-              <span className="text-xs text-gray-500">{action.customerPhone}</span>
+              <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
+                {action.customerPhone}
+              </span>
             )}
           </div>
           
           {action.context && (
-            <p className="text-xs text-gray-500 mt-2 italic">{action.context}</p>
+            <p className="text-xs mt-2 italic" style={{ color: 'var(--color-text-muted)' }}>
+              {action.context}
+            </p>
           )}
         </div>
-      </div>
-      
-      {/* Swipe indicators */}
-      <div className="absolute inset-y-0 left-0 flex items-center pl-4">
-        <X className="w-6 h-6 text-red-600 opacity-0" />
-      </div>
-      <div className="absolute inset-y-0 right-0 flex items-center pr-4">
-        <CheckCircle className="w-6 h-6 text-green-600 opacity-0" />
       </div>
     </motion.div>
   );

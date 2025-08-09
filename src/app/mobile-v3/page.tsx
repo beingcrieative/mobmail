@@ -85,6 +85,8 @@ export default function MobileHomePage() {
   const [loadingStates, setLoadingStates] = useState<{[key: string]: boolean}>({});
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [pendingStatusCheck, setPendingStatusCheck] = useState<{type: string, statusCode: string} | null>(null);
+  const [selectedForwardingMode, setSelectedForwardingMode] = useState<string | null>(null);
+  const [nextEvent, setNextEvent] = useState<any>(null);
   const router = useRouter();
 
   // Fetch user data when authentication state changes
@@ -497,6 +499,32 @@ export default function MobileHomePage() {
     };
   }, [user?.id]);
 
+  // Fetch next agenda event for the user
+  useEffect(() => {
+    const fetchNextAgendaEvent = async () => {
+      if (!user?.id) return;
+      try {
+        const res = await fetch(`/api/agenda-events?userId=${user.id}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        const events = Array.isArray(data.events) ? data.events : [];
+        const now = new Date();
+        const upcoming = events
+          .map((e: any) => ({
+            ...e,
+            start: new Date(e.start_time || e.startTime || e.start),
+            end: new Date(e.end_time || e.endTime || e.end),
+          }))
+          .filter((e: any) => e.start.getTime() >= now.getTime())
+          .sort((a: any, b: any) => a.start.getTime() - b.start.getTime())[0];
+        setNextEvent(upcoming || null);
+      } catch (e) {
+        // silent fail; card stays hidden
+      }
+    };
+    fetchNextAgendaEvent();
+  }, [user?.id]);
+
   // Generate mock notifications for demonstration
   useEffect(() => {
     if (user?.id && notifications.length === 0) {
@@ -741,6 +769,7 @@ export default function MobileHomePage() {
     <div className="h-full" style={{ background: 'var(--va-bg-home)' }}>
       <Header 
         title="VoicemailAI" 
+        subtitle={`${getGreeting()}, ${getDisplayName()}!`}
         showNotifications={hasNewNotifications}
         showSettings={false}
         onNotificationClick={() => setShowNotifications(true)}
@@ -749,39 +778,22 @@ export default function MobileHomePage() {
       <div className="px-4 py-6 pb-24">
         <AuthStatus />
         
-        {/* Welcome Section - VoicemailAI Success Gradient */}
+        {/* Welcome Section condensed into header; keep a concise status line here */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mb-6"
-          style={{
-            margin: '0 -20px 24px -20px',
-            padding: 'var(--spacing-md)',
-            background: 'var(--va-gradient-welcome)',
-            borderRadius: 'var(--radius-md)',
-            color: 'var(--color-text-white)'
-          }}
+          className="mb-4"
         >
-          <h2
+          <div className="va-section-card p-3">
+            <p 
+              className="text-sm"
             style={{
-              fontSize: 'var(--font-size-h2)',
-              fontWeight: 'var(--font-weight-bold)',
-              color: 'var(--color-text-white)',
-              marginBottom: 'var(--spacing-sm)',
-              fontFamily: 'var(--font-family-primary)'
+                color: 'var(--color-text-secondary)'
             }}
           >
-            👋 {getGreeting()}, {getDisplayName()}!
-          </h2>
-          <p 
-            style={{
-              color: 'rgba(255, 255, 255, 0.9)',
-              fontSize: 'var(--font-size-body)',
-              fontFamily: 'var(--font-family-primary)'
-            }}
-          >
-            {dataLoading ? 'Gegevens laden...' : `${stats.todayVoicemails} nieuwe berichten - zakelijk actief! 💚`}
+              {dataLoading ? 'Gegevens laden...' : `${stats.todayVoicemails} nieuwe berichten - zakelijk actief!`}
           </p>
+          </div>
         </motion.div>
 
         {/* Business Stats Section - VoicemailAI Success Metrics */}
@@ -791,30 +803,21 @@ export default function MobileHomePage() {
           transition={{ delay: 0.1 }}
           className="mb-6"
         >
-          <div
-            className="p-4 rounded-xl"
-            style={{
-              background: '#dcf1eb',
-              border: '2px solid var(--va-verdigris)'
-            }}
-          >
+          <div className="p-4 rounded-xl va-section-card">
             <div className="flex items-center gap-3">
-              <div
-                className="w-10 h-10 rounded-full flex items-center justify-center text-white"
-                style={{ background: 'var(--va-verdigris)' }}
-              >
+              <div className="w-10 h-10 rounded-full flex items-center justify-center text-white" style={{ background: 'var(--color-primary)' }}>
                 📈
               </div>
               <div>
                 <div
                   className="font-medium text-sm"
-                  style={{ color: 'var(--va-indigo-dye)' }}
+                  style={{ color: 'var(--color-text-primary)' }}
                 >
                   Vandaag: €{stats.todayVoicemails * 150} leads
                 </div>
                 <div
                   className="text-xs"
-                  style={{ color: 'var(--va-lapis-lazuli)' }}
+                  style={{ color: 'var(--color-text-muted)' }}
                 >
                   {stats.todayVoicemails} gesprekken → {Math.max(1, Math.floor(stats.todayVoicemails * 0.7))} potentiële klanten
                 </div>
@@ -848,146 +851,85 @@ export default function MobileHomePage() {
             onClick={checkAllForwardingStatus}
             className="mb-4 flex items-center justify-center space-x-2 px-4 py-3 rounded-xl transition-colors"
             style={{
-              background: '#f0fae8',
-              border: '2px solid var(--va-light-green-1)',
-              color: 'var(--va-indigo-dye)'
+              background: 'var(--background-subtle)',
+              border: '1px solid var(--card-border)',
+              color: 'var(--color-text-primary)'
             }}
             aria-label="Controleer de status van alle doorschakelingen"
             title="Controleert systematisch de status van alle doorschakeling types"
           >
-            <BarChart3 size={16} style={{ color: 'var(--va-bondi-blue)' }} />
-            <span className="text-sm font-medium" style={{ color: 'var(--va-indigo-dye)' }}>Alle statussen controleren</span>
+            <BarChart3 size={16} style={{ color: 'var(--color-primary)' }} />
+            <span className="text-sm font-medium" style={{ color: 'var(--color-text-primary)' }}>Alle statussen controleren</span>
           </motion.button>
-          
-          <div className="grid grid-cols-2 gap-3">
-            {doorschakelActies.map((action, index) => {
+          {/* Forwarding segmented control - cooler UX */}
+          <div className="va-section-card p-3 mb-3">
+            <div className="relative w-full bg-white border border-[color:var(--card-border)] rounded-xl p-1">
+              <div className="grid grid-cols-4 gap-1 relative">
+                {doorschakelActies.map((action, idx) => {
               const Icon = action.icon;
-              const currentStatus = forwardingStatus[action.type]?.status || 'unknown';
-              const isLoading = loadingStates[action.type] || false;
-              
-              const handleActivate = async () => {
+                  const isActive = (activeForwardingType === action.type && (forwardingStatus[action.type]?.status || 'unknown') === 'active');
+                  const isSelected = selectedForwardingMode === action.type || isActive;
+                  const handleSelect = async () => {
+                    setSelectedForwardingMode(action.type);
                 setActionLoading(action.type, true);
-                
-                // Provide immediate feedback
                 toast.info(`${getDoorschakelLabel(action.type)} wordt geactiveerd...`);
-                
                 await openDialer(action.ussdCode);
-                
-                // After 3 seconds, offer status check with better messaging
                 setTimeout(() => {
-                  const actionLabel = getDoorschakelLabel(action.type);
                   const shouldCheck = window.confirm(
-                    `✅ ${actionLabel} commando verzonden!\n\n` +
-                    `Wil je de status controleren om te bevestigen dat de doorschakeling actief is?\n\n` +
-                    `💡 Tip: Lang indrukken controleert alleen de status zonder te activeren.`
+                        `✅ ${getDoorschakelLabel(action.type)} commando verzonden!\n\nStatus controleren om te bevestigen?`
                   );
-                  
                   if (shouldCheck) {
                     checkForwardingStatus(action.type, action.statusCode);
                   } else {
-                    // Assume activation was successful for UX
                     updateForwardingStatus(action.type, 'active', true);
                   }
                   setActionLoading(action.type, false);
-                }, 3000);
-              };
-              
-              const handleLongPress = () => {
-                checkForwardingStatus(action.type, action.statusCode);
-              };
-              
-              const buttonStyling = getButtonStyling(action.type, currentStatus);
-              const isActive = activeForwardingType === action.type && currentStatus === 'active';
-              
+                    }, 2000);
+                  };
               return (
                 <motion.button
-                  key={index}
+                      key={action.type}
                   whileTap={{ scale: 0.98 }}
-                  whileHover={{ scale: 1.02, y: -2 }}
-                  onClick={handleActivate}
-                  onContextMenu={(e) => {
-                    e.preventDefault();
-                    handleLongPress();
-                  }}
-                  disabled={isLoading}
-                  className={buttonStyling.buttonClass}
-                  aria-label={`${getDoorschakelLabel(action.type)}${isActive ? ' - Momenteel actief' : ''}`}
-                  aria-pressed={isActive}
-                  title={`Klik om ${getDoorschakelLabel(action.type).toLowerCase()} te activeren. Lang indrukken om status te controleren.`}
+                      onClick={handleSelect}
+                      onContextMenu={(e) => { e.preventDefault(); checkForwardingStatus(action.type, action.statusCode); }}
+                      className="relative flex flex-col items-center justify-center py-2 rounded-lg h-16"
                   style={{ 
-                    WebkitTapHighlightColor: 'transparent',
-                    userSelect: 'none',
-                    touchAction: 'manipulation',
-                    padding: '12px',
-                    height: '100px',
-                    minWidth: '140px',
-                    overflow: 'hidden'
-                  }}
-                >
-                  {/* Status indicator */}
-                  <div 
-                    className="absolute -top-2 -right-2 w-4 h-4 rounded-full border-2 border-white"
-                    style={{ backgroundColor: getStatusColor(currentStatus) }}
-                  />
-                  
-                  {/* Icon container */}
-                  <div className={`w-10 h-10 rounded-lg ${buttonStyling.iconColorClass} flex items-center justify-center mb-1`}>
-                    {isLoading ? (
-                      <Loader2 size={18} className="text-white animate-spin" />
-                    ) : (
-                      <>
-                        <Icon size={18} className="text-white" />
-                        {isActive && action.type !== 'disable' && (
-                          <CheckCircle size={12} className="text-white absolute top-0 right-0 bg-green-600 rounded-full" />
-                        )}
-                      </>
-                    )}
-                  </div>
-                  
-                  {/* Label */}
-                  <span 
-                    className="text-center"
-                    style={{
-                      fontSize: '11px',
-                      fontWeight: 'var(--font-weight-medium)',
-                      color: 'var(--color-text-primary)',
-                      fontFamily: 'var(--font-family-primary)',
-                      lineHeight: '1.2',
-                      whiteSpace: 'normal',
-                      wordBreak: 'break-word',
-                      textAlign: 'center',
-                      maxWidth: '100%'
-                    }}
-                  >
-                    {action.label}
+                        background: isSelected ? 'rgba(37,99,232,0.08)' : 'transparent',
+                        border: isSelected ? '1px solid rgba(37,99,232,0.15)' : '1px solid transparent'
+                      }}
+                      title={`${getDoorschakelLabel(action.type)}${isActive ? ' (actief)' : ''}`}
+                    >
+                      <Icon size={16} style={{ color: isSelected ? 'var(--color-primary)' : 'var(--color-text-secondary)' }} />
+                      <span className="mt-1 text-[10px] font-medium leading-none" style={{ color: isSelected ? 'var(--color-primary)' : 'var(--color-text-secondary)' }}>
+                        {action.type === 'unconditional' ? 'Altijd' :
+                         action.type === 'busy' ? 'Bezet' :
+                         action.type === 'unanswered' ? 'Niet opn.' : 'Uit'}
                   </span>
-                  
-                  {/* Enhanced status badge with better visual feedback */}
-                  <div 
-                    className="mt-0.5 text-center"
-                    style={{
-                      fontSize: '9px',
-                      color: isActive ? '#059669' : 'var(--color-text-muted)',
-                      fontFamily: 'var(--font-family-primary)',
-                      lineHeight: '1.1',
-                      fontWeight: isActive ? 'var(--font-weight-medium)' : 'normal'
-                    }}
-                  >
-                    <div>
-                      {isActive ? '✓ Actief' : getStatusLabel(currentStatus)}
-                      {isActive && action.type !== 'disable' && (
-                        <span style={{ color: '#059669', marginLeft: '2px' }}>●</span>
+                      {isActive && (
+                        <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full" style={{ background: '#059669' }} />
                       )}
+                    </motion.button>
+                  );
+                })}
                     </div>
-                    {forwardingStatus[action.type]?.lastChecked && !isActive && (
-                      <div style={{ fontSize: '8px', marginTop: '1px' }}>
-                        {getStatusAge(forwardingStatus[action.type].lastChecked)}
                       </div>
-                    )}
+            {/* Status chips */}
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              {doorschakelActies.map((action) => {
+                const currentStatus = forwardingStatus[action.type]?.status || 'unknown';
+                const isActive = activeForwardingType === action.type && currentStatus === 'active';
+                const color = isActive ? '#059669' : getStatusColor(currentStatus);
+                const shortLabel = action.type === 'unconditional' ? 'Altijd' : action.type === 'busy' ? 'Bezet' : action.type === 'unanswered' ? 'Niet opn.' : 'Uit';
+                const shortStatus = isActive ? 'Actief' : getStatusLabel(currentStatus);
+                return (
+                  <div key={`chip-${action.type}`} className="flex items-center justify-between px-2 py-1 rounded-lg text-[10px] border bg-white"
+                       style={{ borderColor: 'var(--card-border)' }}>
+                    <span style={{ color: 'var(--color-text-secondary)' }}>{shortLabel}</span>
+                    <span className="font-medium" style={{ color }}>{shortStatus}</span>
                   </div>
-                </motion.button>
               );
             })}
+            </div>
           </div>
         </motion.div>
 
@@ -1062,6 +1004,39 @@ export default function MobileHomePage() {
             </motion.button>
           </div>
         </motion.div>
+
+        {/* Upcoming appointment card (must-have for ZZP'ers) */}
+        {nextEvent && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="mb-10"
+          >
+            <div className="va-section-card p-4 flex items-start gap-3">
+              <div className="w-10 h-10 rounded-full flex items-center justify-center text-white" style={{ background: 'var(--color-primary)' }}>
+                <Calendar size={18} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-medium" style={{ color: 'var(--color-text-primary)' }}>Komende afspraak</div>
+                <div className="text-sm truncate" style={{ color: 'var(--color-text-secondary)' }}>
+                  {nextEvent.title || 'Afspraak'}
+                </div>
+                <div className="text-xs mt-1" style={{ color: 'var(--color-text-muted)' }}>
+                  {new Date(nextEvent.start).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' })} • {new Date(nextEvent.start).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
+                </div>
+              </div>
+              <motion.button
+                whileTap={{ scale: 0.96 }}
+                onClick={() => router.push('/mobile-v3/calendar')}
+                className="px-3 py-2 rounded-lg text-xs font-medium"
+                style={{ border: '1px solid var(--card-border)' }}
+              >
+                Open kalender
+              </motion.button>
+            </div>
+          </motion.div>
+        )}
 
       </div>
 

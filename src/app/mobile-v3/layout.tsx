@@ -89,8 +89,12 @@ export default function MobileLayout({ children }: MobileLayoutProps) {
       startUrl: '/mobile-v3/',
     });
 
-    // Register minimal service worker for PWA compliance (client-side only)
-    if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+    // Register minimal service worker only in production (avoid dev cache issues)
+    if (
+      typeof window !== 'undefined' &&
+      'serviceWorker' in navigator &&
+      process.env.NODE_ENV === 'production'
+    ) {
       navigator.serviceWorker.register('/sw.js', {
         scope: '/',
         updateViaCache: 'none'
