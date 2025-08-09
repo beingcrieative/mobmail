@@ -768,7 +768,7 @@ export default function MobileHomePage() {
   return (
     <div className="h-full" style={{ background: 'var(--va-bg-home)' }}>
       <Header 
-        title="VoicemailAI"
+        title="VoicemailAI" 
         subtitle={`${getGreeting()}, ${getDisplayName()}!`}
         showNotifications={hasNewNotifications}
         showSettings={false}
@@ -787,12 +787,12 @@ export default function MobileHomePage() {
           <div className="va-section-card p-3">
             <p 
               className="text-sm"
-              style={{
+            style={{
                 color: 'var(--color-text-secondary)'
-              }}
-            >
+            }}
+          >
               {dataLoading ? 'Gegevens laden...' : `${stats.todayVoicemails} nieuwe berichten - zakelijk actief!`}
-            </p>
+          </p>
           </div>
         </motion.div>
 
@@ -866,34 +866,34 @@ export default function MobileHomePage() {
             <div className="relative w-full bg-white border border-[color:var(--card-border)] rounded-xl p-1">
               <div className="grid grid-cols-4 gap-1 relative">
                 {doorschakelActies.map((action, idx) => {
-                  const Icon = action.icon;
+              const Icon = action.icon;
                   const isActive = (activeForwardingType === action.type && (forwardingStatus[action.type]?.status || 'unknown') === 'active');
                   const isSelected = selectedForwardingMode === action.type || isActive;
                   const handleSelect = async () => {
                     setSelectedForwardingMode(action.type);
-                    setActionLoading(action.type, true);
-                    toast.info(`${getDoorschakelLabel(action.type)} wordt geactiveerd...`);
-                    await openDialer(action.ussdCode);
-                    setTimeout(() => {
-                      const shouldCheck = window.confirm(
+                setActionLoading(action.type, true);
+                toast.info(`${getDoorschakelLabel(action.type)} wordt geactiveerd...`);
+                await openDialer(action.ussdCode);
+                setTimeout(() => {
+                  const shouldCheck = window.confirm(
                         `✅ ${getDoorschakelLabel(action.type)} commando verzonden!\n\nStatus controleren om te bevestigen?`
-                      );
-                      if (shouldCheck) {
-                        checkForwardingStatus(action.type, action.statusCode);
-                      } else {
-                        updateForwardingStatus(action.type, 'active', true);
-                      }
-                      setActionLoading(action.type, false);
+                  );
+                  if (shouldCheck) {
+                    checkForwardingStatus(action.type, action.statusCode);
+                  } else {
+                    updateForwardingStatus(action.type, 'active', true);
+                  }
+                  setActionLoading(action.type, false);
                     }, 2000);
                   };
-                  return (
-                    <motion.button
+              return (
+                <motion.button
                       key={action.type}
-                      whileTap={{ scale: 0.98 }}
+                  whileTap={{ scale: 0.98 }}
                       onClick={handleSelect}
                       onContextMenu={(e) => { e.preventDefault(); checkForwardingStatus(action.type, action.statusCode); }}
                       className="relative flex flex-col items-center justify-center py-2 rounded-lg h-16"
-                      style={{
+                  style={{ 
                         background: isSelected ? 'rgba(37,99,232,0.08)' : 'transparent',
                         border: isSelected ? '1px solid rgba(37,99,232,0.15)' : '1px solid transparent'
                       }}
@@ -904,15 +904,15 @@ export default function MobileHomePage() {
                         {action.type === 'unconditional' ? 'Altijd' :
                          action.type === 'busy' ? 'Bezet' :
                          action.type === 'unanswered' ? 'Niet opn.' : 'Uit'}
-                      </span>
+                  </span>
                       {isActive && (
                         <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full" style={{ background: '#059669' }} />
                       )}
                     </motion.button>
                   );
                 })}
-              </div>
-            </div>
+                    </div>
+                      </div>
             {/* Status chips */}
             <div className="mt-3 grid grid-cols-2 gap-2">
               {doorschakelActies.map((action) => {
@@ -927,8 +927,8 @@ export default function MobileHomePage() {
                     <span style={{ color: 'var(--color-text-secondary)' }}>{shortLabel}</span>
                     <span className="font-medium" style={{ color }}>{shortStatus}</span>
                   </div>
-                );
-              })}
+              );
+            })}
             </div>
           </div>
         </motion.div>

@@ -59,6 +59,7 @@ export default function AgentAssistantPage() {
   const isOnboarding = searchParams?.get('source') === 'onboarding';
   const onboardingTargetFields = ['name','mobileNumber','companyName','companyEmail','companyOpeningHours','companyInfo','information','calUsername','calApiKey','calEventTypeId'];
   const [onboardingProgress, setOnboardingProgress] = useState<{collected: number; missing: number; missingKeys: string[]}>({ collected: 0, missing: onboardingTargetFields.length, missingKeys: onboardingTargetFields });
+  const [onboardingSaved, setOnboardingSaved] = useState(false);
 
   useEffect(() => {
     fetchAgentData();
@@ -121,14 +122,14 @@ export default function AgentAssistantPage() {
 
       // Alleen standaard welkomstbericht als we NIET in onboarding zijn
       if (!isOnboarding) {
-        setChatMessages([
-          {
-            id: '1',
-            type: 'agent',
-            message: 'Hoi! Ik ben je AI business assistant. Ik heb 3 nieuwe acties voor je gegenereerd op basis van recente gesprekken. Stel me vragen over klanten of afspraken, of laat me acties uitvoeren. Waarmee kan ik helpen?',
-            timestamp: Date.now() - 600000
-          }
-        ]);
+      setChatMessages([
+        {
+          id: '1',
+          type: 'agent',
+          message: 'Hoi! Ik ben je AI business assistant. Ik heb 3 nieuwe acties voor je gegenereerd op basis van recente gesprekken. Stel me vragen over klanten of afspraken, of laat me acties uitvoeren. Waarmee kan ik helpen?',
+          timestamp: Date.now() - 600000
+        }
+      ]);
       }
 
     } catch (error) {
@@ -213,7 +214,8 @@ export default function AgentAssistantPage() {
               enabled: true,
               targetFields: onboardingTargetFields,
               current: {}
-            } : undefined
+            } : undefined,
+            history: [...chatMessages.slice(-20)].map(m => ({ role: m.type === 'user' ? 'user' : 'agent', message: m.message }))
           }
         })
       });
@@ -241,8 +243,14 @@ export default function AgentAssistantPage() {
         setOnboardingProgress({ collected: Object.keys(fields).length, missing: missing.length, missingKeys: missing });
       }
 
-      // If ready, persist via profile API
-      if (aiResponse.onboarding && aiResponse.onboarding.readyToSave && aiResponse.onboarding.fields) {
+      // Persist at the end only (when no fields missing and not saved yet)
+      if (
+        aiResponse.onboarding &&
+        Array.isArray(aiResponse.onboarding.missing) &&
+        aiResponse.onboarding.missing.length === 0 &&
+        aiResponse.onboarding.fields &&
+        !onboardingSaved
+      ) {
         try {
           await fetch('/api/user/profile', {
             method: 'PUT',
@@ -252,10 +260,11 @@ export default function AgentAssistantPage() {
           const savedMsg: ChatMessage = {
             id: (Date.now() + 2).toString(),
             type: 'agent',
-            message: '✅ Ik heb je gegevens opgeslagen. Je kunt later altijd via de wizard details aanvullen.',
+            message: '✅ Alle gegevens compleet. Ik heb je profiel opgeslagen.',
             timestamp: Date.now()
           };
           setChatMessages(prev => [...prev, savedMsg]);
+          setOnboardingSaved(true);
           setTimeout(() => {
             const el = document.getElementById('chat-scroll-container');
             if (el) el.scrollTop = el.scrollHeight;

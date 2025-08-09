@@ -205,7 +205,13 @@ WEGWIJZER:
     const fullContext = `${businessContext}${recentTranscriptionsContext}${activeActionsContext}${onboardingContext}`;
 
     // Build Gemini request payload (REST)
-    const systemInstruction = `${AGENT_SYSTEM_PROMPT}${fullContext ? `\n\nCONTEXT:\n${fullContext}` : ''}`;
+    // Build short rolling history to improve coherence
+    const historyText = (context?.history || [])
+      .slice(-20)
+      .map(h => `${h.role === 'user' ? 'GEBRUIKER' : 'AGENT'}: ${h.message}`)
+      .join('\n');
+
+    const systemInstruction = `${AGENT_SYSTEM_PROMPT}${fullContext ? `\n\nCONTEXT:\n${fullContext}` : ''}${historyText ? `\n\nGESPREKSHISTORIE (laatste beurten):\n${historyText}` : ''}`;
     const geminiBody = {
       contents: [
         {
@@ -218,7 +224,7 @@ WEGWIJZER:
         parts: [{ text: systemInstruction }]
       },
       generationConfig: {
-        temperature: 0.7,
+      temperature: 0.7,
         response_mime_type: 'application/json'
       }
     } as any;

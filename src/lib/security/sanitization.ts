@@ -281,7 +281,11 @@ class SecuritySanitizationService {
         enabled: z.boolean(),
         targetFields: z.array(z.string()),
         current: z.record(z.string()).optional()
-      }).optional()
+      }).optional(),
+      history: z.array(z.object({
+        role: z.enum(['user','agent']),
+        message: z.string().min(1)
+      })).optional()
     }).optional()
   });
 
